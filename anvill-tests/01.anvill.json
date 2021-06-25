@@ -1,0 +1,105 @@
+{
+    "symbols": [
+        [
+            4195440,
+            "printf"
+        ],
+        [
+            4195712,
+            "main"
+        ],
+        [
+            4195424,
+            "puts"
+        ],
+        [
+            400,
+            "errno"
+        ]
+    ],
+    "variables": [
+        { "type" : "i",
+          "address" : 400
+        }
+    ],
+    "functions": [
+        {
+            "is_variadic": true,
+            "return_values": [
+                {
+                    "type": "i",
+                    "register": "RAX"
+                }
+            ],
+            "parameters": [
+                {
+                    "type": "*b",
+                    "register": "RDI"
+                }
+            ],
+            "return_stack_pointer": {
+                "type": "L",
+                "offset": 8,
+                "register": "RSP"
+            },
+            "return_address": {
+                "type": "L",
+                "memory": {
+                    "offset": 0,
+                    "register": "RSP"
+                }
+            },
+            "address": 4195440
+        },
+        {
+            "return_values": [
+                {
+                    "type": "l",
+                    "register": "RAX"
+                }
+            ],
+            "return_stack_pointer": {
+                "type": "L",
+                "offset": 8,
+                "register": "RSP"
+            },
+            "return_address": {
+                "type": "L",
+                "memory": {
+                    "offset": 0,
+                    "register": "RSP"
+                }
+            },
+            "address": 4195712
+        },
+        {
+            "return_values": [
+                {
+                    "type": "i",
+                    "register": "RAX"
+                }
+            ],
+            "parameters": [
+                {
+                    "type": "i",
+                    "register": "RDI"
+                }
+            ],
+            "return_stack_pointer": {
+                "type": "L",
+                "offset": 8,
+                "register": "RSP"
+            },
+            "return_address": {
+                "type": "L",
+                "memory": {
+                    "offset": 0,
+                    "register": "RSP"
+                }
+            },
+            "address": 4195424
+        }
+    ],
+    "os": "linux",
+    "arch": "amd64"
+}

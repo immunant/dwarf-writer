@@ -1,0 +1,19 @@
+[package]
+name = "dwarf-writer"
+version = "0.1.0"
+authors = ["Ayrton Munoz <adm@immunant.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Input file parsing
+serde = { version = "1.0.126", features = ["derive"] }
+serde_json = "1.0"
+serde_repr = "0.1"
+
+# Handling ELF and DWARF formats
+object = "0.25.3"
+gimli = "0.24.0"
+
+anyhow = "1.0.41"
