@@ -36,7 +36,7 @@ pub struct AnvillHints<A: Arch> {
     memory: Option<Vec<MemoryRange>>,
 }
 
-/// The characteristics of an architecture supoorted by Anvill.
+/// The characteristics of an architecture supported by Anvill.
 pub trait Arch: fmt::Debug {
     type Register: DeserializeOwned + Serialize + fmt::Debug;
     type CallingConvention: DeserializeOwned + Serialize + fmt::Debug;
