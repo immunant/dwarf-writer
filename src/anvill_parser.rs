@@ -1,27 +1,41 @@
 #![allow(non_camel_case_types)]
-use crate::Hints;
 use serde::de;
 use serde::de::{DeserializeOwned, Deserializer, Unexpected, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::collections::HashMap;
 use std::fmt;
 
-impl<A: Arch> Hints for AnvillHints<A> {
-    fn fn_names(&self) -> Option<Vec<&String>> {
-        let fns = self.functions.as_ref();
+impl<A: Arch> AnvillHints<A> {
+    pub fn functions(&self) -> HashMap<&str, &Function<A>> {
+        let mut res = HashMap::new();
+        let funcs = self.functions.as_ref();
         let syms = self.symbols.as_ref();
-        if let (Some(func_vec), Some(sym_vec)) = (fns, syms) {
-            let addr_matches = func_vec.iter().filter_map(|func| {
-                sym_vec
+        if let (Some(funcs), Some(syms)) = (funcs, syms) {
+            for func in funcs {
+                let name = syms
                     .iter()
                     .find(|&sym| sym.address == func.address)
-                    .map(|s| &s.name)
-            });
-            Some(addr_matches.collect())
-        } else {
-            None
+                    .map(|s| s.name.as_str());
+                if let Some(name) = name {
+                    res.insert(name, func);
+                }
+            }
         }
+        res
+    }
+}
+
+impl<A: Arch> Function<A> {
+    pub fn parameters(&self) -> Option<&Vec<Arg<A>>> {
+        self.parameters.as_ref()
+    }
+}
+
+impl<A: Arch> Arg<A> {
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|s| s.as_str())
     }
 }
 

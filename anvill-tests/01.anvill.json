@@ -70,6 +70,13 @@
                     "register": "RSP"
                 }
             },
+            "parameters": [
+                {
+                    "name": "argc",
+                    "type": "i",
+                    "register": "RDI"
+                }
+            ],
             "address": 4195712
         },
         {
