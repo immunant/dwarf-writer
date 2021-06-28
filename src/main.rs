@@ -1,14 +1,14 @@
-use anvill_parser::{AnvillHints, Arch, X86};
+use anvill_parser::{AnvillFnMap, AnvillHints, Arch};
 use anyhow::Result;
 use dwarf_writer::ELF;
 use gimli::constants::*;
 use gimli::write;
-use gimli::write::{DebuggingInformationEntry, EndianVec, Sections, StringTable, UnitEntryId};
+use gimli::write::{EndianVec, Sections, StringTable, UnitEntryId};
 use gimli::RunTimeEndian;
 use std::env::{args, Args};
+use std::fs;
 use std::io::Write;
 use std::str::from_utf8;
-use std::{fmt, fs, io};
 
 mod anvill_parser;
 mod dwarf_writer;
@@ -28,13 +28,6 @@ fn parse_args(args: &mut Args) -> Result<(String, String)> {
     Ok((hints, binary))
 }
 
-fn open_hints(path: &str) -> Result<AnvillHints<X86>> {
-    let file = fs::File::open(path)?;
-    let reader = io::BufReader::new(file);
-    let hints = serde_json::from_reader(reader)?;
-    Ok(hints)
-}
-
 fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
     sections.for_each(|id, data| {
         if !data.slice().is_empty() {
@@ -47,11 +40,27 @@ fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
     })
 }
 
-fn attr_to_str<'a>(attr: &'a write::AttributeValue, strings: &'a StringTable) -> Option<&'a [u8]> {
+fn name_to_str<'a>(attr: &'a write::AttributeValue, strings: &'a StringTable) -> Option<&'a [u8]> {
     // TODO: This is missing some cases
     match attr {
         write::AttributeValue::String(s) => Some(s),
         write::AttributeValue::StringRef(str_id) => Some(strings.get(*str_id)),
+        _ => None,
+    }
+}
+
+fn low_pc_to_u64(attr: &write::AttributeValue) -> Option<u64> {
+    // TODO: Handle Address::Symbol
+    match attr {
+        write::AttributeValue::Address(write::Address::Constant(addr)) => Some(*addr),
+        _ => None,
+    }
+}
+
+fn high_pc_to_u64(attr: &write::AttributeValue) -> Option<u64> {
+    match attr {
+        write::AttributeValue::Address(write::Address::Constant(addr)) => Some(*addr),
+        write::AttributeValue::Udata(addr) => Some(*addr),
         _ => None,
     }
 }
@@ -63,32 +72,46 @@ struct DIERef<'a> {
     // The DIE's ID
     id: UnitEntryId,
 
-    // Miscellaneous DWARF info for debugging
+    // Miscellaneous DWARF info
     strings: &'a write::StringTable,
 }
 
+/// Initializes a newly created subprogram DIE.
+fn create_fn<A: Arch>(die_ref: DIERef, addr: u64, anvill_data: &mut AnvillFnMap<A>) {
+    let die = die_ref.unit.get_mut(die_ref.id);
+    die.set(
+        DW_AT_low_pc,
+        write::AttributeValue::Address(write::Address::Constant(addr)),
+    );
+    update_fn(die_ref, anvill_data)
+}
 // TODO: Make another pass that creates subprogram DIEs and adds a function
 // prototype. Maybe this pass should return the anvill fn data used to make it
 // easier to track what anvill fn data should be used in the create_subprogram
 // pass
 /// Updates or creates a function prototype for an existing DW_TAG_subprogram
 /// DIE.
-fn update_fn_prototype<A: Arch>(die_ref: DIERef, hints: &AnvillHints<A>) -> Result<()> {
+fn update_fn<A: Arch>(die_ref: DIERef, anvill_data: &mut AnvillFnMap<A>) {
     let DIERef { unit, id, strings } = die_ref;
     let die = unit.get_mut(id);
 
+    // Get this function's address from the existing DWARF data
+    let low_pc_attr = die.get(DW_AT_low_pc).expect("");
+    let low_pc = low_pc_to_u64(low_pc_attr).expect("");
+
+    //let high_pc_attr = die.get(DW_AT_high_pc).expect("");
+    //let high_pc = high_pc_to_u64(high_pc_attr).expect("");
+
     // Get this function's name from the existing DWARF data
-    let name_attr = die.get(DW_AT_name).expect("");
-    let name = from_utf8(attr_to_str(name_attr, strings).expect(""))?;
+    //let name_attr = die.get(DW_AT_name).expect("");
+    //let name = from_utf8(name_to_str(name_attr, strings).expect(""))?;
 
     // Get the anvill data for this function
-    // TODO: Create the `functions` hashmap in the constructor
-    let all_anvill_data = hints.functions();
-    let anvill_fn_data = all_anvill_data.get(name);
+    let fn_data = anvill_data.remove(&low_pc);
 
     // Only modify DIE if anvill function parameter data is present
-    if let Some(fn_data) = anvill_fn_data {
-        if let Some(params) = fn_data.parameters() {
+    if let Some(fn_data) = fn_data {
+        if let Some(params) = fn_data.0.parameters() {
             // TODO: This overwrites DW_AT_prototyped = false which shouldn't be valid
             // anyway?
             die.set(DW_AT_prototyped, write::AttributeValue::Flag(true));
@@ -110,7 +133,6 @@ fn update_fn_prototype<A: Arch>(die_ref: DIERef, hints: &AnvillHints<A>) -> Resu
             }
         }
     }
-    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -121,7 +143,10 @@ fn main() -> Result<()> {
             return Err(e)
         },
     };
-    let hints = open_hints(&hints_path)?;
+    let hints = AnvillHints::new(&hints_path)?;
+    // The `update_fn` pass will remove entries from this map then the `create_fn`
+    // will create DIEs for the remaining entries
+    let mut fn_map = hints.functions();
 
     let mut elf = ELF::new(&binary_path)?;
 
@@ -139,7 +164,8 @@ fn main() -> Result<()> {
                 for die_id in children.drain(..).collect::<Vec<_>>() {
                     let die = unit.get(die_id);
 
-                    // collect grandchildren for later processing before mutating the DIE
+                    // collect grandchildren processing before mutating the DIE since newly created
+                    // DIEs should not be processed
                     let mut grandchildren = die.children().cloned().collect();
                     children.append(&mut grandchildren);
 
@@ -151,9 +177,20 @@ fn main() -> Result<()> {
                             id: die_id,
                             strings: &dwarf.strings,
                         };
-                        update_fn_prototype(die_ref, &hints)?;
+                        update_fn(die_ref, &mut fn_map);
                     }
                 }
+            }
+            // Add a subprogram DIE for each remaining `fn_map` entry
+            let remaining_entries = fn_map.keys().cloned().collect::<Vec<_>>();
+            for addr in remaining_entries {
+                let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
+                let die_ref = DIERef {
+                    unit,
+                    id: fn_id,
+                    strings: &dwarf.strings,
+                };
+                create_fn(die_ref, addr, &mut fn_map);
             }
         }
         Ok(())

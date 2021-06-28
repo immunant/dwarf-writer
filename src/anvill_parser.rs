@@ -1,14 +1,26 @@
 #![allow(non_camel_case_types)]
+use anyhow::Result;
 use serde::de;
 use serde::de::{DeserializeOwned, Deserializer, Unexpected, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
-use std::fmt;
+use std::{fmt, fs, io};
+
+impl AnvillHints<X86> {
+    pub fn new(path: &str) -> Result<Self> {
+        let file = fs::File::open(path)?;
+        let reader = io::BufReader::new(file);
+        let hints = serde_json::from_reader(reader)?;
+        Ok(hints)
+    }
+}
+
+pub type AnvillFnMap<'a, A> = HashMap<u64, (&'a Function<A>, Option<&'a str>)>;
 
 impl<A: Arch> AnvillHints<A> {
-    pub fn functions(&self) -> HashMap<&str, &Function<A>> {
+    pub fn functions(&self) -> AnvillFnMap<A> {
         let mut res = HashMap::new();
         let funcs = self.functions.as_ref();
         let syms = self.symbols.as_ref();
@@ -18,9 +30,7 @@ impl<A: Arch> AnvillHints<A> {
                     .iter()
                     .find(|&sym| sym.address == func.address)
                     .map(|s| s.name.as_str());
-                if let Some(name) = name {
-                    res.insert(name, func);
-                }
+                res.insert(func.address, (func, name));
             }
         }
         res
