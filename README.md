@@ -4,7 +4,7 @@ Dwarf-writer updates DWARF debug sections with information obtained through targ
 
 ## Building and prerequisites
 
-Building dwarf-writer requires a [rust installation](https://www.rust-lang.org/). Dwarf-writer also currently writes the update sections to individual files instead of modifying the input binary. While this is subject to change, it means that currently [objcopy](https://www.gnu.org/software/binutils/) cross-compiled for the target architecture is required to write the updated sections back to the program binary.
+Building dwarf-writer requires a [rust installation](https://www.rust-lang.org/). Dwarf-writer also currently writes the updated sections to individual files instead of modifying the input binary. While this is subject to change, it means that currently [objcopy](https://www.gnu.org/software/binutils/) cross-compiled for the target architecture is required to write the updated sections back to the program binary.
 
 ```
 $ git clone https://github.com/immunant/dwarf-writer
