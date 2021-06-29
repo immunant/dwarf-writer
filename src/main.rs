@@ -8,7 +8,6 @@ use gimli::RunTimeEndian;
 use std::env::{args, Args};
 use std::fs;
 use std::io::Write;
-use std::str::from_utf8;
 
 mod anvill_parser;
 mod dwarf_writer;
@@ -40,28 +39,28 @@ fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
     })
 }
 
-fn name_to_str<'a>(attr: &'a write::AttributeValue, strings: &'a StringTable) -> Option<&'a [u8]> {
+fn name_to_str<'a>(attr: &'a write::AttributeValue, strings: &'a StringTable) -> &'a [u8] {
     // TODO: This is missing some cases
     match attr {
-        write::AttributeValue::String(s) => Some(s),
-        write::AttributeValue::StringRef(str_id) => Some(strings.get(*str_id)),
-        _ => None,
+        write::AttributeValue::String(s) => s,
+        write::AttributeValue::StringRef(str_id) => strings.get(*str_id),
+        _ => panic!("Unhandled `AttributeValue` variant in `name_to_str`"),
     }
 }
 
-fn low_pc_to_u64(attr: &write::AttributeValue) -> Option<u64> {
+fn low_pc_to_u64(attr: &write::AttributeValue) -> u64 {
     // TODO: Handle Address::Symbol
     match attr {
-        write::AttributeValue::Address(write::Address::Constant(addr)) => Some(*addr),
-        _ => None,
+        write::AttributeValue::Address(write::Address::Constant(addr)) => *addr,
+        _ => panic!("Unhandled `AttributeValue` variant in `low_pc_to_u64`"),
     }
 }
 
-fn high_pc_to_u64(attr: &write::AttributeValue) -> Option<u64> {
+fn high_pc_to_u64(attr: &write::AttributeValue) -> u64 {
     match attr {
-        write::AttributeValue::Address(write::Address::Constant(addr)) => Some(*addr),
-        write::AttributeValue::Udata(addr) => Some(*addr),
-        _ => None,
+        write::AttributeValue::Address(write::Address::Constant(addr)) => *addr,
+        write::AttributeValue::Udata(addr) => *addr,
+        _ => panic!("Unhandled `AttributeValue` variant in `high_pc_to_u64`"),
     }
 }
 
@@ -70,7 +69,7 @@ struct DIERef<'a> {
     // The unit containing the DIE
     unit: &'a mut write::Unit,
     // The DIE's ID
-    id: UnitEntryId,
+    self_id: UnitEntryId,
 
     // Miscellaneous DWARF info
     strings: &'a write::StringTable,
@@ -78,49 +77,61 @@ struct DIERef<'a> {
 
 /// Initializes a newly created subprogram DIE.
 fn create_fn<A: Arch>(die_ref: DIERef, addr: u64, anvill_data: &mut AnvillFnMap<A>) {
-    let die = die_ref.unit.get_mut(die_ref.id);
+    let die = die_ref.unit.get_mut(die_ref.self_id);
     die.set(
         DW_AT_low_pc,
         write::AttributeValue::Address(write::Address::Constant(addr)),
     );
     update_fn(die_ref, anvill_data)
 }
-// TODO: Make another pass that creates subprogram DIEs and adds a function
-// prototype. Maybe this pass should return the anvill fn data used to make it
-// easier to track what anvill fn data should be used in the create_subprogram
-// pass
+
 /// Updates or creates a function prototype for an existing DW_TAG_subprogram
 /// DIE.
 fn update_fn<A: Arch>(die_ref: DIERef, anvill_data: &mut AnvillFnMap<A>) {
-    let DIERef { unit, id, strings } = die_ref;
-    let die = unit.get_mut(id);
+    let DIERef {
+        unit,
+        self_id,
+        strings,
+    } = die_ref;
+    let die = unit.get(self_id);
 
     // Get this function's address from the existing DWARF data
-    let low_pc_attr = die.get(DW_AT_low_pc).expect("");
-    let low_pc = low_pc_to_u64(low_pc_attr).expect("");
-
-    //let high_pc_attr = die.get(DW_AT_high_pc).expect("");
-    //let high_pc = high_pc_to_u64(high_pc_attr).expect("");
-
-    // Get this function's name from the existing DWARF data
-    //let name_attr = die.get(DW_AT_name).expect("");
-    //let name = from_utf8(name_to_str(name_attr, strings).expect(""))?;
+    let low_pc_attr = die
+        .get(DW_AT_low_pc)
+        .expect("No DW_AT_low_pc found in DW_TAG_subprogram DIE");
+    let low_pc = low_pc_to_u64(low_pc_attr);
 
     // Get the anvill data for this function
     let fn_data = anvill_data.remove(&low_pc);
-
-    // Only modify DIE if anvill function parameter data is present
     if let Some(fn_data) = fn_data {
-        if let Some(params) = fn_data.0.parameters() {
-            // TODO: This overwrites DW_AT_prototyped = false which shouldn't be valid
-            // anyway?
-            die.set(DW_AT_prototyped, write::AttributeValue::Flag(true));
-            for param in params {
-                // TODO: Check that the argument doesn't already exist, i.e. no
-                // DW_TAG_formal_parameter DIE should have a matching DW_AT_name or
-                // DW_AT_location
-
-                let param_id = unit.add(id, DW_TAG_formal_parameter);
+        // Update function name overwriting any existing DW_AT_name
+        if let Some(name) = fn_data.name {
+            let die = unit.get_mut(self_id);
+            die.set(
+                DW_AT_name,
+                write::AttributeValue::String(name.as_bytes().to_vec()),
+            );
+        }
+        // Update function parameters
+        if let Some(parameters) = fn_data.func.parameters() {
+            for param in parameters {
+                // Search for a matching DIE by name
+                // TODO: Search for a matching formal parameter DIE by location
+                let die = unit.get(self_id);
+                let matching_die_id = die.children().find(|&&child_id| {
+                    let child_die = unit.get(child_id);
+                    let child_tag = child_die.tag();
+                    let name_attr = child_die
+                        .get(DW_AT_name)
+                        .expect("assume anvill json always names args for now");
+                    let name = name_to_str(name_attr, strings);
+                    child_tag == DW_TAG_formal_parameter && name == param.name().unwrap().as_bytes()
+                });
+                // Add a formal parameter DIE if a matching DIE wasn't found
+                let param_id = match matching_die_id {
+                    Some(&id) => id,
+                    None => unit.add(self_id, DW_TAG_formal_parameter),
+                };
                 let param_die = unit.get_mut(param_id);
                 if let Some(param_name) = param.name() {
                     param_die.set(
@@ -128,9 +139,10 @@ fn update_fn<A: Arch>(die_ref: DIERef, anvill_data: &mut AnvillFnMap<A>) {
                         write::AttributeValue::String(param_name.as_bytes().to_vec()),
                     );
                 }
-                // TODO: Set DW_AT_type
-                // TODO: Set DW_AT_location
             }
+            // Mark the subprogram DIE as prototyped
+            let die = unit.get_mut(self_id);
+            die.set(DW_AT_prototyped, write::AttributeValue::Flag(true));
         }
     }
 }
@@ -174,7 +186,7 @@ fn main() -> Result<()> {
                     if die.tag() == DW_TAG_subprogram {
                         let die_ref = DIERef {
                             unit,
-                            id: die_id,
+                            self_id: die_id,
                             strings: &dwarf.strings,
                         };
                         update_fn(die_ref, &mut fn_map);
@@ -187,7 +199,7 @@ fn main() -> Result<()> {
                 let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
                 let die_ref = DIERef {
                     unit,
-                    id: fn_id,
+                    self_id: fn_id,
                     strings: &dwarf.strings,
                 };
                 create_fn(die_ref, addr, &mut fn_map);

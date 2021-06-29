@@ -17,7 +17,12 @@ impl AnvillHints<X86> {
     }
 }
 
-pub type AnvillFnMap<'a, A> = HashMap<u64, (&'a Function<A>, Option<&'a str>)>;
+pub type AnvillFnMap<'a, A> = HashMap<u64, NamedFunction<'a, A>>;
+
+pub struct NamedFunction<'a, A: Arch> {
+    pub func: &'a Function<A>,
+    pub name: Option<&'a str>,
+}
 
 impl<A: Arch> AnvillHints<A> {
     pub fn functions(&self) -> AnvillFnMap<A> {
@@ -30,7 +35,7 @@ impl<A: Arch> AnvillHints<A> {
                     .iter()
                     .find(|&sym| sym.address == func.address)
                     .map(|s| s.name.as_str());
-                res.insert(func.address, (func, name));
+                res.insert(func.address, NamedFunction { func, name });
             }
         }
         res
