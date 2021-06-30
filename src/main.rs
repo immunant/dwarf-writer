@@ -1,4 +1,4 @@
-use anvill_parser::{AnvillFnMap, AnvillHints, Arch};
+use anvill_parser::{AnvillFnMap, AnvillHints};
 use anyhow::Result;
 use dwarf_writer::ELF;
 use gimli::constants::*;
@@ -76,7 +76,7 @@ struct DIERef<'a> {
 }
 
 /// Initializes a newly created subprogram DIE.
-fn create_fn<A: Arch>(die_ref: DIERef, addr: u64, anvill_data: &mut AnvillFnMap<A>) {
+fn create_fn(die_ref: DIERef, addr: u64, anvill_data: &mut AnvillFnMap) {
     let die = die_ref.unit.get_mut(die_ref.self_id);
     die.set(
         DW_AT_low_pc,
@@ -87,7 +87,7 @@ fn create_fn<A: Arch>(die_ref: DIERef, addr: u64, anvill_data: &mut AnvillFnMap<
 
 /// Updates or creates a function prototype for an existing DW_TAG_subprogram
 /// DIE.
-fn update_fn<A: Arch>(die_ref: DIERef, anvill_data: &mut AnvillFnMap<A>) {
+fn update_fn(die_ref: DIERef, anvill_data: &mut AnvillFnMap) {
     let DIERef {
         unit,
         self_id,

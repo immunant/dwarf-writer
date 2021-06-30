@@ -8,7 +8,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
 use std::{fmt, fs, io};
 
-impl AnvillHints<ARM> {
+impl AnvillHints {
     pub fn new(path: &str) -> Result<Self> {
         let file = fs::File::open(path)?;
         let reader = io::BufReader::new(file);
@@ -17,15 +17,15 @@ impl AnvillHints<ARM> {
     }
 }
 
-pub type AnvillFnMap<'a, A> = HashMap<u64, NamedFunction<'a, A>>;
+pub type AnvillFnMap<'a> = HashMap<u64, NamedFunction<'a>>;
 
-pub struct NamedFunction<'a, A: Arch> {
-    pub func: &'a Function<A>,
+pub struct NamedFunction<'a> {
+    pub func: &'a Function,
     pub name: Option<&'a str>,
 }
 
-impl<A: Arch> AnvillHints<A> {
-    pub fn functions(&self) -> AnvillFnMap<A> {
+impl AnvillHints {
+    pub fn functions(&self) -> AnvillFnMap {
         let mut res = HashMap::new();
         let funcs = self.functions.as_ref();
         let syms = self.symbols.as_ref();
@@ -42,13 +42,13 @@ impl<A: Arch> AnvillHints<A> {
     }
 }
 
-impl<A: Arch> Function<A> {
-    pub fn parameters(&self) -> Option<&Vec<Arg<A>>> {
+impl Function {
+    pub fn parameters(&self) -> Option<&Vec<Arg>> {
         self.parameters.as_ref()
     }
 }
 
-impl<A: Arch> Arg<A> {
+impl Arg {
     pub fn name(&self) -> Option<&str> {
         self.name.as_ref().map(|s| s.as_str())
     }
@@ -56,19 +56,27 @@ impl<A: Arch> Arg<A> {
 
 /// Represents a single Anvill input file.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AnvillHints<A: Arch> {
-    arch: A,
+pub struct AnvillHints {
+    arch: Arch,
     os: OS,
-    functions: Option<Vec<Function<A>>>,
+    functions: Option<Vec<Function>>,
     variables: Option<Vec<Variable>>,
     symbols: Option<Vec<Symbol>>,
     memory: Option<Vec<MemoryRange>>,
 }
 
-/// The characteristics of an architecture supported by Anvill.
-pub trait Arch: fmt::Debug {
-    type Register: DeserializeOwned + Serialize + fmt::Debug;
-    type CallingConvention: DeserializeOwned + Serialize + fmt::Debug;
+#[derive(Deserialize, Serialize, Debug)]
+pub enum Arch {
+    aarch64,
+    aarch32,
+    x86,
+    x86_avx,
+    x86_avx512,
+    amd64,
+    amd64_avx,
+    amd64_avx512,
+    sparc32,
+    sparc64,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -80,15 +88,15 @@ pub enum OS {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct Function<A: Arch> {
+pub struct Function {
     address: u64,
-    return_address: Value<Tagged<A>>,
-    return_stack_pointer: Option<Value<Untagged<A>>>,
-    parameters: Option<Vec<Arg<A>>>,
-    return_values: Option<Vec<Value<Tagged<A>>>>,
+    return_address: Value<Tagged>,
+    return_stack_pointer: Option<Value<Untagged>>,
+    parameters: Option<Vec<Arg>>,
+    return_values: Option<Vec<Value<Tagged>>>,
     is_variadic: Option<bool>,
     is_noreturn: Option<bool>,
-    calling_convention: Option<A::CallingConvention>,
+    calling_convention: Option<CallingConvention>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -112,10 +120,10 @@ pub struct MemoryRange {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct Arg<A: Arch> {
+pub struct Arg {
     name: Option<String>,
     #[serde(flatten)]
-    value: Value<Tagged<A>>,
+    value: Value<Tagged>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -126,25 +134,25 @@ pub struct Value<T: ValueLocation> {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub enum Tagged<A: Arch> {
-    memory { register: A::Register, offset: u64 },
-    register(A::Register),
+pub enum Tagged {
+    memory { register: Register, offset: u64 },
+    register(Register),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
-pub enum Untagged<A: Arch> {
-    memory { register: A::Register, offset: u64 },
-    register(A::Register),
+pub enum Untagged {
+    memory { register: Register, offset: u64 },
+    register(Register),
 }
 
 pub trait ValueLocation {}
-impl<A: Arch> ValueLocation for Tagged<A> {}
-impl<A: Arch> ValueLocation for Untagged<A> {}
+impl ValueLocation for Tagged {}
+impl ValueLocation for Untagged {}
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct Memory<A: Arch> {
-    register: A::Register,
+pub struct Memory {
+    register: Register,
     offset: u64,
 }
 
@@ -271,13 +279,11 @@ pub enum CallingConvention {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub enum X86 {
-    x86,
-    x86_avx,
-    x86_avx512,
-    amd64,
-    amd64_avx,
-    amd64_avx512,
+#[serde(untagged)]
+pub enum Register {
+    X86(X86Register),
+    ARM(ARMRegister),
+    SPARC(SPARCRegister),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -300,17 +306,6 @@ pub enum X86Register {
     R15,
 }
 
-impl Arch for X86 {
-    type Register = X86Register;
-    type CallingConvention = CallingConvention;
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub enum ARM {
-    aarch64,
-    aarch32,
-}
-
 #[derive(Deserialize, Serialize, Debug)]
 pub enum ARMRegister {
     LR,
@@ -330,24 +325,8 @@ pub enum ARMRegister {
     R12,
 }
 
-impl Arch for ARM {
-    type Register = ARMRegister;
-    type CallingConvention = CallingConvention;
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub enum SPARC {
-    sparc32,
-    sparc64,
-}
-
 #[derive(Deserialize, Serialize, Debug)]
 pub enum SPARCRegister {}
-
-impl Arch for SPARC {
-    type Register = SPARCRegister;
-    type CallingConvention = CallingConvention;
-}
 
 #[cfg(test)]
 mod tests {
@@ -375,7 +354,7 @@ mod tests {
             let file = fs::File::open(format!("{}/{}", TEST_DIR, test_name))
                 .expect(&format!("Could not open test {}", test_name));
             let reader = io::BufReader::new(file);
-            let _: AnvillHints<X86> =
+            let _: AnvillHints =
                 serde_json::from_reader(reader).expect(&format!("Failed test {}", test_name));
         }
     }
