@@ -297,16 +297,17 @@ mod tests {
     use std::fs;
     use std::io;
 
+    const TEST_DIR: &str = "anvill-tests/json";
     fn get_tests() -> impl Iterator<Item = String> {
-        let all_files = fs::read_dir("anvill-tests").expect("Could not open test directory");
+        let all_files = fs::read_dir(TEST_DIR).expect("Could not open test directory");
 
         all_files.filter_map(|file| file.ok()).filter_map(|file| {
             let name = file
                 .file_name()
                 .into_string()
                 .expect("Could not convert `OsString` to UTF-8");
-            let is_test = name.ends_with("anvill.json");
-            if is_test {
+            let test_case = name.contains("stripped") || name.contains("empty");
+            if test_case {
                 Some(name)
             } else {
                 None
@@ -318,7 +319,7 @@ mod tests {
     fn pate_tests() {
         for test_name in get_tests() {
             println!("Running test case: {}", test_name);
-            let file = fs::File::open(format!("anvill-tests/{}", test_name))
+            let file = fs::File::open(format!("{}/{}", TEST_DIR, test_name))
                 .expect(&format!("Could not open test {}", test_name));
             let reader = io::BufReader::new(file);
             let _: AnvillHints<X86> =

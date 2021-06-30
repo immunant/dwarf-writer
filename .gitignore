@@ -1,2 +1,4 @@
 /target
 debug_*
+/anvill-tests/bin/*
+/anvill-tests/json/*

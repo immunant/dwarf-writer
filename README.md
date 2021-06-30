@@ -18,7 +18,7 @@ $ ./target/release/dwarf-writer $DISASM_DATA $BINARY
 
 ## Supported target architectures
 
-Target architecture support depends on the limits of the input disassembly data sources. Currently the only disassembly data source supported is the [JSON specification](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md) produced by [Anvill's](https://github.com/lifting-bits/anvill/) python plugins which supports x86, ARM and SPARC. See the [spec docs](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md#architecture) for details.
+Target architecture support depends on the input disassembly data sources. Currently the only disassembly data source supported is a limited subset of the [JSON specification](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md) produced by [Anvill's](https://github.com/lifting-bits/anvill/) python plugins which supports x86, ARM and SPARC. See the [spec docs](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md#architecture) for details.
 
 ## Example usage:
 
@@ -28,9 +28,10 @@ $ cargo run $DISASM_DATA $BINARY
 $ ls debug_*
 debug_abbrev debug_info debug_line debug_str
 
+# TODO: Add note about `objcopy --add-section` for new sections
 $ for section in debug_*; do objcopy --update-section .$section=$section $BINARY; done
 
-# To view program's update debug info
+# To view the program's updated debug info
 $ objdump -g $BINARY | less
 
 # To view a particular section
