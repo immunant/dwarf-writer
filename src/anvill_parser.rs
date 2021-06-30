@@ -173,12 +173,55 @@ pub enum Type {
     Bool,
     Primitive(PrimitiveType),
     Pointer {
-        r#type: PrimitiveType,
-        indirection_levels: u64,
+        referent_ty: Box<Type>,
+        indirection_levels: usize,
+    },
+    Array {
+        inner_type: Box<Type>,
+        len: u64,
     },
 }
 
 struct TypeVisitor;
+impl TypeVisitor {
+    fn parse_primitive<E: de::Error>(&self, s: &str) -> Result<PrimitiveType, E> {
+        serde_json::from_value(json!(s))
+            .map_err(|_| de::Error::invalid_value(Unexpected::Str(s), self))
+    }
+
+    fn parse_type<E: de::Error>(&self, s: &str) -> Result<Type, E> {
+        if s == "?" {
+            Ok(Type::Bool)
+        } else {
+            if s.len() == 1 {
+                let ty = self.parse_primitive(s)?;
+                Ok(Type::Primitive(ty))
+            } else {
+                if s.starts_with("[") && s.ends_with("]") {
+                    let inner_str = &s[1..s.len() - 1];
+                    let (inner_str, len) = inner_str
+                        .rsplit_once("x")
+                        .expect("Array type did not specify a length");
+                    let inner_type = Box::new(self.parse_type(inner_str)?);
+                    let len = len
+                        .parse()
+                        .map_err(|_| de::Error::invalid_value(Unexpected::Str(inner_str), self))?;
+                    Ok(Type::Array { inner_type, len })
+                } else if s.starts_with("*") {
+                    let indirection_levels = s.chars().take_while(|&c| c == '*').count() as usize;
+                    let referent_str = &s[indirection_levels..];
+                    let referent_ty = Box::new(self.parse_type(referent_str)?);
+                    Ok(Type::Pointer {
+                        referent_ty,
+                        indirection_levels,
+                    })
+                } else {
+                    Err(de::Error::invalid_value(Unexpected::Str(s), self))
+                }
+            }
+        }
+    }
+}
 impl<'de> Visitor<'de> for TypeVisitor {
     type Value = Type;
 
@@ -188,27 +231,7 @@ impl<'de> Visitor<'de> for TypeVisitor {
 
     fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
     where E: de::Error {
-        match s {
-            "?" => Ok(Type::Bool),
-            _ if s.len() == 1 => {
-                let ty = serde_json::from_value(json!(s))
-                    .map_err(|_| de::Error::invalid_value(Unexpected::Str(s), &self))?;
-                Ok(Type::Primitive(ty))
-            },
-            _ => {
-                let indirection_levels = s.chars().take_while(|&c| c == '*').count() as u64;
-                let referent_ty = s
-                    .chars()
-                    .find(|&c| c != '*')
-                    .ok_or(de::Error::invalid_value(Unexpected::Str(s), &self))?;
-                let r#type = serde_json::from_value(json!(referent_ty))
-                    .map_err(|_| de::Error::invalid_value(Unexpected::Str(s), &self))?;
-                Ok(Type::Pointer {
-                    r#type,
-                    indirection_levels,
-                })
-            },
-        }
+        self.parse_type(s)
     }
 }
 
@@ -306,12 +329,7 @@ mod tests {
                 .file_name()
                 .into_string()
                 .expect("Could not convert `OsString` to UTF-8");
-            let test_case = name.contains("stripped") || name.contains("empty");
-            if test_case {
-                Some(name)
-            } else {
-                None
-            }
+            Some(name)
         })
     }
 
