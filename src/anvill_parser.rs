@@ -8,7 +8,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
 use std::{fmt, fs, io};
 
-impl AnvillHints<X86> {
+impl AnvillHints<ARM> {
     pub fn new(path: &str) -> Result<Self> {
         let file = fs::File::open(path)?;
         let reader = io::BufReader::new(file);
@@ -85,7 +85,7 @@ pub struct Function<A: Arch> {
     return_address: Value<Tagged<A>>,
     return_stack_pointer: Option<Value<Untagged<A>>>,
     parameters: Option<Vec<Arg<A>>>,
-    return_values: Vec<Value<Tagged<A>>>,
+    return_values: Option<Vec<Value<Tagged<A>>>>,
     is_variadic: Option<bool>,
     is_noreturn: Option<bool>,
     calling_convention: Option<A::CallingConvention>,
@@ -184,6 +184,8 @@ pub enum Type {
         inner_type: Box<Type>,
         len: u64,
     },
+    Struct,
+    Function,
 }
 
 struct TypeVisitor;
@@ -193,7 +195,7 @@ impl TypeVisitor {
             .map_err(|_| de::Error::invalid_value(Unexpected::Str(s), self))
     }
 
-    fn parse_delimited<E: de::Error>(&self, s: &str) -> Result<(Box<Type>, u64), E> {
+    fn parse_array<E: de::Error>(&self, s: &str) -> Result<(Box<Type>, u64), E> {
         let inner_str = &s[1..s.len() - 1];
         let (inner_str, len) = inner_str
             .rsplit_once("x")
@@ -206,6 +208,9 @@ impl TypeVisitor {
     }
 
     fn parse_type<E: de::Error>(&self, s: &str) -> Result<Type, E> {
+        fn is_bracketed(x: &str, left: &str, right: &str) -> bool {
+            x.starts_with(left) && x.ends_with(right)
+        }
         if s == "?" {
             Ok(Type::Bool)
         } else {
@@ -213,12 +218,16 @@ impl TypeVisitor {
                 let ty = self.parse_primitive(s)?;
                 Ok(Type::Primitive(ty))
             } else {
-                if s.starts_with("[") && s.ends_with("]") {
-                    let (inner_type, len) = self.parse_delimited(s)?;
+                if is_bracketed(s, "[", "]") {
+                    let (inner_type, len) = self.parse_array(s)?;
                     Ok(Type::Array { inner_type, len })
-                } else if s.starts_with("<") && s.ends_with(">") {
-                    let (inner_type, len) = self.parse_delimited(s)?;
+                } else if is_bracketed(s, "<", ">") {
+                    let (inner_type, len) = self.parse_array(s)?;
                     Ok(Type::Vector { inner_type, len })
+                } else if is_bracketed(s, "{", "}") {
+                    Ok(Type::Struct)
+                } else if is_bracketed(s, "(", ")") {
+                    Ok(Type::Function)
                 } else if s.starts_with("*") {
                     let indirection_levels = s.chars().take_while(|&c| c == '*').count() as usize;
                     let referent_str = &s[indirection_levels..];
@@ -304,7 +313,21 @@ pub enum ARM {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum ARMRegister {
-    Lr,
+    LR,
+    SP,
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
 }
 
 impl Arch for ARM {
