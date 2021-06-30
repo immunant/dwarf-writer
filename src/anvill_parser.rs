@@ -180,6 +180,10 @@ pub enum Type {
         inner_type: Box<Type>,
         len: u64,
     },
+    Vector {
+        inner_type: Box<Type>,
+        len: u64,
+    },
 }
 
 struct TypeVisitor;
@@ -187,6 +191,18 @@ impl TypeVisitor {
     fn parse_primitive<E: de::Error>(&self, s: &str) -> Result<PrimitiveType, E> {
         serde_json::from_value(json!(s))
             .map_err(|_| de::Error::invalid_value(Unexpected::Str(s), self))
+    }
+
+    fn parse_delimited<E: de::Error>(&self, s: &str) -> Result<(Box<Type>, u64), E> {
+        let inner_str = &s[1..s.len() - 1];
+        let (inner_str, len) = inner_str
+            .rsplit_once("x")
+            .expect("Array type did not specify a length");
+        let inner_type = Box::new(self.parse_type(inner_str)?);
+        let len = len
+            .parse()
+            .map_err(|_| de::Error::invalid_value(Unexpected::Str(inner_str), self))?;
+        Ok((inner_type, len))
     }
 
     fn parse_type<E: de::Error>(&self, s: &str) -> Result<Type, E> {
@@ -198,15 +214,11 @@ impl TypeVisitor {
                 Ok(Type::Primitive(ty))
             } else {
                 if s.starts_with("[") && s.ends_with("]") {
-                    let inner_str = &s[1..s.len() - 1];
-                    let (inner_str, len) = inner_str
-                        .rsplit_once("x")
-                        .expect("Array type did not specify a length");
-                    let inner_type = Box::new(self.parse_type(inner_str)?);
-                    let len = len
-                        .parse()
-                        .map_err(|_| de::Error::invalid_value(Unexpected::Str(inner_str), self))?;
+                    let (inner_type, len) = self.parse_delimited(s)?;
                     Ok(Type::Array { inner_type, len })
+                } else if s.starts_with("<") && s.ends_with(">") {
+                    let (inner_type, len) = self.parse_delimited(s)?;
+                    Ok(Type::Vector { inner_type, len })
                 } else if s.starts_with("*") {
                     let indirection_levels = s.chars().take_while(|&c| c == '*').count() as usize;
                     let referent_str = &s[indirection_levels..];
