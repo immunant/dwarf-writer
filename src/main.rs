@@ -6,26 +6,21 @@ use gimli::write;
 use gimli::write::{EndianVec, LineProgram, Sections, StringTable, Unit, UnitEntryId};
 use gimli::{Encoding, Format, RunTimeEndian};
 use object::Object;
-use std::env::{args, Args};
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
+use structopt::StructOpt;
 
 mod anvill_parser;
 mod dwarf_writer;
 
-fn print_help() {
-    println!("help message goes here");
-}
-
-fn parse_args(args: &mut Args) -> Result<(String, String)> {
-    let hints = args
-        .skip(1)
-        .next()
-        .ok_or(anyhow::Error::msg("Missing hints file"))?;
-    let binary = args
-        .next()
-        .ok_or(anyhow::Error::msg("Missing binary file"))?;
-    Ok((hints, binary))
+#[derive(StructOpt, Debug)]
+#[structopt(name = "basic")]
+struct Opt {
+    #[structopt(short = "b", long = "bin_in", parse(from_os_str))]
+    binary_path: PathBuf,
+    #[structopt(short = "a", long = "anvill", parse(from_os_str))]
+    anvill_path: Option<PathBuf>,
 }
 
 fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
@@ -151,14 +146,11 @@ fn update_fn(die_ref: DIERef, anvill_data: &mut AnvillFnMap) {
 }
 
 fn main() -> Result<()> {
-    let (hints_path, binary_path) = match parse_args(&mut args()) {
-        Ok(paths) => paths,
-        Err(e) => {
-            print_help();
-            return Err(e)
-        },
-    };
-    let hints = AnvillHints::new(&hints_path)?;
+    let opt = Opt::from_args();
+    let binary_path = opt.binary_path;
+    let anvill_path = opt.anvill_path;
+    let hints = AnvillHints::new(anvill_path.unwrap())?;
+    //let hints = AnvillHints::new(&hints_path)?;
     // The `update_fn` pass will remove entries from this map then the `create_fn`
     // will create DIEs for the remaining entries
     let mut fn_map = hints.functions();

@@ -17,3 +17,4 @@ object = "0.25.3"
 gimli = "0.24.0"
 
 anyhow = "1.0.41"
+structopt = "0.3.21"

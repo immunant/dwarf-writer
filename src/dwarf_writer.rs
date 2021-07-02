@@ -6,6 +6,7 @@ use object::{Object, ObjectSection};
 use std::borrow::Cow;
 use std::fs;
 use std::io::Read;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct ELF {
@@ -13,7 +14,7 @@ pub struct ELF {
 }
 
 impl ELF {
-    pub fn new(path: &str) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut file = fs::File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
@@ -23,10 +24,6 @@ impl ELF {
 
     fn object(&self) -> Result<object::File> {
         Ok(object::File::parse(self.buffer.as_slice())?)
-    }
-
-    pub fn is_64(&self) -> bool {
-        self.object().expect("").is_64()
     }
 
     /// Calls the specified closure with immutable access to the DWARF sections

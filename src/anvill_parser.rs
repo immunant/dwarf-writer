@@ -1,15 +1,16 @@
 #![allow(non_camel_case_types)]
 use anyhow::Result;
 use serde::de;
-use serde::de::{DeserializeOwned, Deserializer, Unexpected, Visitor};
+use serde::de::{Deserializer, Unexpected, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
+use std::path::Path;
 use std::{fmt, fs, io};
 
 impl AnvillHints {
-    pub fn new(path: &str) -> Result<Self> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = fs::File::open(path)?;
         let reader = io::BufReader::new(file);
         let hints = serde_json::from_reader(reader)?;
