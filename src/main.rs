@@ -3,8 +3,9 @@ use anyhow::Result;
 use dwarf_writer::ELF;
 use gimli::constants::*;
 use gimli::write;
-use gimli::write::{EndianVec, Sections, StringTable, UnitEntryId};
-use gimli::RunTimeEndian;
+use gimli::write::{EndianVec, LineProgram, Sections, StringTable, Unit, UnitEntryId};
+use gimli::{Encoding, Format, RunTimeEndian};
+use object::Object;
 use std::env::{args, Args};
 use std::fs;
 use std::io::Write;
@@ -115,6 +116,7 @@ fn update_fn(die_ref: DIERef, anvill_data: &mut AnvillFnMap) {
         // Update function parameters
         if let Some(parameters) = fn_data.func.parameters() {
             for param in parameters {
+                println!("anvill had param {:?} for {:#x}", param, low_pc);
                 // Search for a matching DIE by name
                 // TODO: Search for a matching formal parameter DIE by location
                 let die = unit.get(self_id);
@@ -138,6 +140,7 @@ fn update_fn(die_ref: DIERef, anvill_data: &mut AnvillFnMap) {
                         DW_AT_name,
                         write::AttributeValue::String(param_name.as_bytes().to_vec()),
                     );
+                    //param_die.set(DW_AT_base_type,
                 }
             }
             // Mark the subprogram DIE as prototyped
@@ -162,7 +165,24 @@ fn main() -> Result<()> {
 
     let mut elf = ELF::new(&binary_path)?;
 
-    let updated_sections = elf.with_dwarf_mut(|dwarf| {
+    let updated_sections = elf.with_dwarf_mut(|elf, dwarf| {
+        if dwarf.units.count() == 0 {
+            let format = if elf.is_64() {
+                Format::Dwarf64
+            } else {
+                Format::Dwarf32
+            };
+            let encoding = Encoding {
+                address_size: format.word_size(),
+                format,
+                // TODO: Make this configurable
+                version: 4,
+            };
+            let line_program = LineProgram::none();
+            let root = Unit::new(encoding, line_program);
+            dwarf.units.add(root);
+        };
+        // TODO: How should DWARF version be handled here?
         for idx in 0..dwarf.units.count() {
             let unit_id = dwarf.units.id(idx);
             let unit = dwarf.units.get_mut(unit_id);
@@ -170,6 +190,9 @@ fn main() -> Result<()> {
             // process root DIE
             let root_die = unit.get(unit.root());
             println!("Processing root DIE {:?}", root_die.tag().static_string());
+            // TODO: Add/check for type DIEs. This means iterating over functions/variables
+            // to add all types that don't already exist
+            println!("{:#?}", hints.types());
 
             let mut children = root_die.children().cloned().collect::<Vec<_>>();
             while !children.is_empty() {

@@ -17,9 +17,10 @@ impl AnvillHints {
     }
 }
 
-pub type AnvillFnMap<'a> = HashMap<u64, NamedFunction<'a>>;
+pub type AnvillFnMap<'a> = HashMap<u64, FunctionRef<'a>>;
 
-pub struct NamedFunction<'a> {
+#[derive(Debug)]
+pub struct FunctionRef<'a> {
     pub func: &'a Function,
     pub name: Option<&'a str>,
 }
@@ -35,9 +36,26 @@ impl AnvillHints {
                     .iter()
                     .find(|&sym| sym.address == func.address)
                     .map(|s| s.name.as_str());
-                res.insert(func.address, NamedFunction { func, name });
+                res.insert(func.address, FunctionRef { func, name });
             }
         }
+        res
+    }
+
+    pub fn types(&self) -> Vec<&Type> {
+        let mut res: Vec<_> = self
+            .functions()
+            .values()
+            .map(|f| f.func.types())
+            .flatten()
+            .collect();
+        if let Some(vars) = &self.variables {
+            for var in vars {
+                res.push(&var.r#type);
+            }
+        }
+        res.sort();
+        res.dedup();
         res
     }
 }
@@ -45,6 +63,24 @@ impl AnvillHints {
 impl Function {
     pub fn parameters(&self) -> Option<&Vec<Arg>> {
         self.parameters.as_ref()
+    }
+
+    pub fn types(&self) -> Vec<&Type> {
+        let mut res = vec![&self.return_address.r#type];
+        if let Some(ret_sp) = &self.return_stack_pointer {
+            res.push(&ret_sp.r#type);
+        }
+        if let Some(params) = &self.parameters {
+            for param in params {
+                res.push(&param.value.r#type);
+            }
+        }
+        if let Some(ret_values) = &self.return_values {
+            for ret_val in ret_values {
+                res.push(&ret_val.r#type);
+            }
+        }
+        res
     }
 }
 
@@ -156,7 +192,10 @@ pub struct Memory {
     offset: u64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+// Deriving `PartialOrd` and `Ord` here and for `Type` to allow sorting and
+// deduping the Vec of types for a given instance of `AnvillHints`. The ordering
+// itself can be completely arbitrary.
+#[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum PrimitiveType {
     b, // i8
     B, // u8
@@ -176,7 +215,7 @@ pub enum PrimitiveType {
     Q, // f128
     v, // void
 }
-#[derive(Serialize, Debug)]
+#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Type {
     Bool,
     Primitive(PrimitiveType),

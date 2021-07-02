@@ -25,10 +25,14 @@ impl ELF {
         Ok(object::File::parse(self.buffer.as_slice())?)
     }
 
+    pub fn is_64(&self) -> bool {
+        self.object().expect("").is_64()
+    }
+
     /// Calls the specified closure with immutable access to the DWARF sections
     /// provided by `gimli::read::Dwarf`
     pub fn with_dwarf<F, R>(&self, mut f: F) -> Result<R>
-    where F: FnMut(&Dwarf<EndianSlice<RunTimeEndian>>) -> Result<R> {
+    where F: FnMut(&object::File, &Dwarf<EndianSlice<RunTimeEndian>>) -> Result<R> {
         let obj = self.object()?;
         let endianness = obj.endianness().into_gimli();
 
@@ -47,7 +51,7 @@ impl ELF {
         let dwarf_cow = Dwarf::load(load_section)?;
 
         let dwarf = dwarf_cow.borrow(|section| EndianSlice::new(&section, endianness));
-        Ok(f(&dwarf)?)
+        Ok(f(&obj, &dwarf)?)
     }
 
     // TODO: Returning `Result<R>` here and having a separate method for returning
@@ -55,14 +59,14 @@ impl ELF {
     /// Calls the specified closure with mutable access to the DWARF sections
     /// provided by `gimli::write::Dwarf`
     pub fn with_dwarf_mut<F>(&mut self, mut f: F) -> Result<Sections<EndianVec<RunTimeEndian>>>
-    where F: FnMut(&mut write::Dwarf) -> Result<()> {
+    where F: FnMut(&object::File, &mut write::Dwarf) -> Result<()> {
         let obj = self.object()?;
         let endianness = obj.endianness().into_gimli();
 
-        self.with_dwarf(|dwarf| {
+        self.with_dwarf(|obj, dwarf| {
             let mut dwarf =
                 write::Dwarf::from(&dwarf, &|addr| Some(write::Address::Constant(addr)))?;
-            f(&mut dwarf)?;
+            f(obj, &mut dwarf)?;
             let mut sections = Sections::new(EndianVec::new(endianness));
             dwarf.write(&mut sections)?;
             Ok(sections)
