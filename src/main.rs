@@ -178,7 +178,11 @@ fn main() -> Result<()> {
     //let anvill_hints = anvill_path.map(|path| AnvillHints::new(path));
     // The `update_fn` pass will remove entries from this map then the `create_fn`
     // will create DIEs for the remaining entries
-    let mut anvill_fn_map = anvill_hints.as_ref().map(|hint| hint.functions());
+    let (mut anvill_fn_map, mut anvill_types) = if let Some(hint) = anvill_hints.as_ref() {
+        (Some(hint.functions()), Some(hint.types()))
+    } else {
+        (None, None)
+    };
 
     let mut elf = ELF::new(&binary_path)?;
 
@@ -210,22 +214,24 @@ fn main() -> Result<()> {
 
             let mut children = root_die.children().cloned().collect::<Vec<_>>();
             // Add DIEs for types that don't already exist
-            for ty in hints.types() {
-                let mut type_found = false;
-                for &child_id in &children {
-                    let child_die = unit.get(child_id);
-                    let tag = child_die.tag();
-                    if tag == DW_TAG_base_type || tag == DW_TAG_pointer_type {
-                        let die_ref = DIERef::new(unit, child_id, &dwarf.strings);
-                        if type_matches(die_ref, ty) {
-                            type_found = true;
+            if let Some(anvill_types) = &anvill_types {
+                for ty in anvill_types {
+                    let mut type_found = false;
+                    for &child_id in &children {
+                        let child_die = unit.get(child_id);
+                        let tag = child_die.tag();
+                        if tag == DW_TAG_base_type || tag == DW_TAG_pointer_type {
+                            let die_ref = DIERef::new(unit, child_id, &dwarf.strings);
+                            if type_matches(die_ref, ty) {
+                                type_found = true;
+                            }
                         }
                     }
-                }
-                if !type_found {
-                    let ty_id = unit.add(unit.root(), DW_TAG_base_type);
-                    let die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
-                    create_type(die_ref);
+                    if !type_found {
+                        let ty_id = unit.add(unit.root(), DW_TAG_base_type);
+                        let die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
+                        create_type(die_ref);
+                    }
                 }
             }
             while !children.is_empty() {
@@ -253,7 +259,7 @@ fn main() -> Result<()> {
                 for addr in remaining_entries {
                     let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
                     let die_ref = DIERef::new(unit, fn_id, &dwarf.strings);
-                    create_fn(die_ref, addr, &mut fn_map);
+                    create_fn(die_ref, addr, fn_map);
                 }
             }
         }
