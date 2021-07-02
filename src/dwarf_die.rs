@@ -1,11 +1,9 @@
 use crate::anvill;
 use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
-use anyhow::Result;
 use gimli::constants;
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, StringTable, Unit, UnitEntryId};
-use std::convert::TryInto;
 
 // References to a subset of `gimli::write::Dwarf` to modify a specific DIE.
 #[derive(Debug)]
@@ -17,6 +15,7 @@ pub struct DIERef<'a> {
 
     // Miscellaneous DWARF info
     strings: &'a StringTable,
+    //types: &'a TypeMap,
 }
 
 impl<'a> DIERef<'a> {
@@ -75,7 +74,7 @@ impl<'a> DIERef<'a> {
                         let name_attr = child_die
                             .get(DW_AT_name)
                             .expect("assume anvill json always names args for now");
-                        let name = name_to_str(name_attr, strings);
+                        let name = name_to_bytes(name_attr, strings);
                         child_tag == DW_TAG_formal_parameter &&
                             name == param.name().unwrap().as_bytes()
                     });
@@ -113,11 +112,10 @@ impl<'a> DIERef<'a> {
         match die.tag() {
             constants::DW_TAG_base_type => match die.get(DW_AT_name) {
                 Some(name_attr) => {
-                    let name: Result<anvill::Type> =
-                        name_to_str(name_attr, self.strings).try_into();
-                    match name {
-                        Ok(name) => name == *ty,
-                        Err(_) => false,
+                    if let Some(name) = name_to_anvill_ty(name_attr, self.strings) {
+                        name == *ty
+                    } else {
+                        false
                     }
                 },
                 None => false,
@@ -126,6 +124,7 @@ impl<'a> DIERef<'a> {
             _ => false,
         }
     }
+
     pub fn create_type(&mut self, ty: &anvill::Type) {
         let die = self.unit.get_mut(self.self_id);
         let ty_name: &[u8] = ty.into();

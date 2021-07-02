@@ -25,6 +25,8 @@ struct Opt {
     mindsight_path: Option<PathBuf>,
 }
 
+//pub type TypeMap<'a, 'b> = HashMap<&'a str, DIERef<'b>>;
+
 fn main() -> Result<()> {
     let opt = Opt::from_args();
     let binary_path = opt.binary_path;
