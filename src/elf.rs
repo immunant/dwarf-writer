@@ -5,7 +5,7 @@ use gimli::{Dwarf, EndianSlice, RunTimeEndian, SectionId};
 use object::{Object, ObjectSection};
 use std::borrow::Cow;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 
 #[derive(Debug)]
@@ -67,6 +67,18 @@ impl ELF {
             let mut sections = Sections::new(EndianVec::new(endianness));
             dwarf.write(&mut sections)?;
             Ok(sections)
+        })
+    }
+
+    pub fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
+        sections.for_each(|id, data| {
+            if !data.slice().is_empty() {
+                println!("Writing {} section", id.name());
+                let file_name = &id.name()[1..];
+                let mut file = fs::File::create(file_name)?;
+                file.write_all(data.slice())?;
+            }
+            Ok(())
         })
     }
 }
