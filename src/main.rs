@@ -21,6 +21,8 @@ struct Opt {
     binary_path: PathBuf,
     #[structopt(short = "a", long = "anvill", parse(from_os_str))]
     anvill_path: Option<PathBuf>,
+    #[structopt(short = "m", long = "mindsight", parse(from_os_str))]
+    mindsight_path: Option<PathBuf>,
 }
 
 fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
@@ -149,11 +151,15 @@ fn main() -> Result<()> {
     let opt = Opt::from_args();
     let binary_path = opt.binary_path;
     let anvill_path = opt.anvill_path;
-    let hints = AnvillHints::new(anvill_path.unwrap())?;
-    //let hints = AnvillHints::new(&hints_path)?;
+    let anvill_hints = if let Some(path) = anvill_path {
+        Some(AnvillHints::new(path)?)
+    } else {
+        None
+    };
+    //let anvill_hints = anvill_path.map(|path| AnvillHints::new(path));
     // The `update_fn` pass will remove entries from this map then the `create_fn`
     // will create DIEs for the remaining entries
-    let mut fn_map = hints.functions();
+    let mut anvill_fn_map = anvill_hints.as_ref().map(|hint| hint.functions());
 
     let mut elf = ELF::new(&binary_path)?;
 
@@ -184,7 +190,6 @@ fn main() -> Result<()> {
             println!("Processing root DIE {:?}", root_die.tag().static_string());
             // TODO: Add/check for type DIEs. This means iterating over functions/variables
             // to add all types that don't already exist
-            println!("{:#?}", hints.types());
 
             let mut children = root_die.children().cloned().collect::<Vec<_>>();
             while !children.is_empty() {
@@ -204,20 +209,24 @@ fn main() -> Result<()> {
                             self_id: die_id,
                             strings: &dwarf.strings,
                         };
-                        update_fn(die_ref, &mut fn_map);
+                        if let Some(fn_map) = &mut anvill_fn_map {
+                            update_fn(die_ref, fn_map);
+                        };
                     }
                 }
             }
             // Add a subprogram DIE for each remaining `fn_map` entry
-            let remaining_entries = fn_map.keys().cloned().collect::<Vec<_>>();
-            for addr in remaining_entries {
-                let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
-                let die_ref = DIERef {
-                    unit,
-                    self_id: fn_id,
-                    strings: &dwarf.strings,
-                };
-                create_fn(die_ref, addr, &mut fn_map);
+            if let Some(fn_map) = &mut anvill_fn_map {
+                let remaining_entries = fn_map.keys().cloned().collect::<Vec<_>>();
+                for addr in remaining_entries {
+                    let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
+                    let die_ref = DIERef {
+                        unit,
+                        self_id: fn_id,
+                        strings: &dwarf.strings,
+                    };
+                    create_fn(die_ref, addr, fn_map);
+                }
             }
         }
         Ok(())
