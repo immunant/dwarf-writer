@@ -160,9 +160,11 @@ fn update_fn(die_ref: DIERef, anvill_data: &mut AnvillFnMap) {
 }
 
 fn type_matches(die_ref: DIERef, ty: &anvill_parser::Type) -> bool {
-    false
+    todo!("implement this")
 }
-fn create_type(die_ref: DIERef) {}
+fn create_type(die_ref: DIERef) {
+    todo!("implement this")
+}
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
@@ -209,21 +211,21 @@ fn main() -> Result<()> {
             let mut children = root_die.children().cloned().collect::<Vec<_>>();
             // Add DIEs for types that don't already exist
             for ty in hints.types() {
+                let mut type_found = false;
                 for &child_id in &children {
                     let child_die = unit.get(child_id);
                     let tag = child_die.tag();
-                    let mut type_found = false;
                     if tag == DW_TAG_base_type || tag == DW_TAG_pointer_type {
                         let die_ref = DIERef::new(unit, child_id, &dwarf.strings);
                         if type_matches(die_ref, ty) {
                             type_found = true;
                         }
                     }
-                    if !type_found {
-                        let ty_id = unit.add(unit.root(), DW_TAG_base_type);
-                        let die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
-                        create_type(die_ref);
-                    }
+                }
+                if !type_found {
+                    let ty_id = unit.add(unit.root(), DW_TAG_base_type);
+                    let die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
+                    create_type(die_ref);
                 }
             }
             while !children.is_empty() {
