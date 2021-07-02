@@ -73,6 +73,18 @@ struct DIERef<'a> {
     strings: &'a write::StringTable,
 }
 
+impl<'a> DIERef<'a> {
+    pub fn new(
+        unit: &'a mut write::Unit, self_id: UnitEntryId, strings: &'a write::StringTable,
+    ) -> Self {
+        DIERef {
+            unit,
+            self_id,
+            strings,
+        }
+    }
+}
+
 /// Initializes a newly created subprogram DIE.
 fn create_fn(die_ref: DIERef, addr: u64, anvill_data: &mut AnvillFnMap) {
     let die = die_ref.unit.get_mut(die_ref.self_id);
@@ -147,6 +159,11 @@ fn update_fn(die_ref: DIERef, anvill_data: &mut AnvillFnMap) {
     }
 }
 
+fn type_matches(die_ref: DIERef, ty: &anvill_parser::Type) -> bool {
+    false
+}
+fn create_type(die_ref: DIERef) {}
+
 fn main() -> Result<()> {
     let opt = Opt::from_args();
     let binary_path = opt.binary_path;
@@ -188,10 +205,27 @@ fn main() -> Result<()> {
             // process root DIE
             let root_die = unit.get(unit.root());
             println!("Processing root DIE {:?}", root_die.tag().static_string());
-            // TODO: Add/check for type DIEs. This means iterating over functions/variables
-            // to add all types that don't already exist
 
             let mut children = root_die.children().cloned().collect::<Vec<_>>();
+            // Add DIEs for types that don't already exist
+            for ty in hints.types() {
+                for &child_id in &children {
+                    let child_die = unit.get(child_id);
+                    let tag = child_die.tag();
+                    let mut type_found = false;
+                    if tag == DW_TAG_base_type || tag == DW_TAG_pointer_type {
+                        let die_ref = DIERef::new(unit, child_id, &dwarf.strings);
+                        if type_matches(die_ref, ty) {
+                            type_found = true;
+                        }
+                    }
+                    if !type_found {
+                        let ty_id = unit.add(unit.root(), DW_TAG_base_type);
+                        let die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
+                        create_type(die_ref);
+                    }
+                }
+            }
             while !children.is_empty() {
                 for die_id in children.drain(..).collect::<Vec<_>>() {
                     let die = unit.get(die_id);
@@ -204,14 +238,10 @@ fn main() -> Result<()> {
                     // process DIE
                     println!("Processing DIE {:?}", die.tag().static_string());
                     if die.tag() == DW_TAG_subprogram {
-                        let die_ref = DIERef {
-                            unit,
-                            self_id: die_id,
-                            strings: &dwarf.strings,
-                        };
                         if let Some(fn_map) = &mut anvill_fn_map {
+                            let die_ref = DIERef::new(unit, die_id, &dwarf.strings);
                             update_fn(die_ref, fn_map);
-                        };
+                        }
                     }
                 }
             }
@@ -220,12 +250,8 @@ fn main() -> Result<()> {
                 let remaining_entries = fn_map.keys().cloned().collect::<Vec<_>>();
                 for addr in remaining_entries {
                     let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
-                    let die_ref = DIERef {
-                        unit,
-                        self_id: fn_id,
-                        strings: &dwarf.strings,
-                    };
-                    create_fn(die_ref, addr, fn_map);
+                    let die_ref = DIERef::new(unit, fn_id, &dwarf.strings);
+                    create_fn(die_ref, addr, &mut fn_map);
                 }
             }
         }
