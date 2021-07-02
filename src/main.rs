@@ -1,10 +1,9 @@
-use anvill::{AnvillFnMap, AnvillHints};
+use anvill::AnvillHints;
 use anyhow::Result;
-use dwarf_die::*;
+use dwarf_die::DIERef;
 use elf::ELF;
 use gimli::constants::*;
-use gimli::write;
-use gimli::write::{LineProgram, Unit, UnitEntryId};
+use gimli::write::{LineProgram, Unit};
 use gimli::{Encoding, Format};
 use object::Object;
 use std::path::PathBuf;
@@ -88,9 +87,10 @@ fn main() -> Result<()> {
                         }
                     }
                     if !type_found {
+                        // TODO: Handle pointer_type
                         let ty_id = unit.add(unit.root(), DW_TAG_base_type);
                         let mut die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
-                        die_ref.create_type();
+                        die_ref.create_type(ty);
                     }
                 }
             }

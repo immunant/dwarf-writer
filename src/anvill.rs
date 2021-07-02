@@ -1,11 +1,12 @@
 #![allow(non_camel_case_types)]
-use anyhow::Result;
+use anyhow::{Error, Result};
 use serde::de;
 use serde::de::{Deserializer, Unexpected, Visitor};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::path::Path;
 use std::{fmt, fs, io};
 
@@ -198,27 +199,28 @@ pub struct Memory {
 // itself can be completely arbitrary.
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum PrimitiveType {
-    b, // i8
-    B, // u8
-    h, // i16
-    H, // u16
-    i, // i32
-    I, // u32
-    l, // i64
-    L, // u64
-    o, // i128
-    O, // u128
-    e, // f16
-    f, // f32
-    d, // f64
+    b, // int8_t or signed char
+    B, // uint8_t or unsigned char
+    h, // int16_t or short
+    H, // uint16_t or unsigned short
+    i, // int32_t or int
+    I, // uint32_t or unsigned
+    l, // int64_t or long long
+    L, // uint64_t or unsigned long long
+    o, // int128_t or __int128
+    O, // uint128_t or __uint128
+    e, // float16_t or binary16
+    f, // float
+    d, // double
     D, // long double
-    M, // mmx
-    Q, // f128
+    M, // uint64_t (x86 MMX vector type)
+    Q, // __float128
     v, // void
 }
+
 #[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Type {
-    Bool,
+    Bool, // _Bool or bool
     Primitive(PrimitiveType),
     Pointer {
         referent_ty: Box<Type>,
@@ -234,6 +236,86 @@ pub enum Type {
     },
     Struct,
     Function,
+}
+
+impl Type {
+    pub fn size(&self) -> u8 {
+        match self {
+            Type::Bool => 1,
+            Type::Primitive(PrimitiveType::b) => 1,
+            Type::Primitive(PrimitiveType::B) => 1,
+            Type::Primitive(PrimitiveType::h) => 2,
+            Type::Primitive(PrimitiveType::H) => 2,
+            Type::Primitive(PrimitiveType::i) => 4,
+            Type::Primitive(PrimitiveType::I) => 4,
+            Type::Primitive(PrimitiveType::l) => 8,
+            Type::Primitive(PrimitiveType::L) => 8,
+            Type::Primitive(PrimitiveType::o) => 16,
+            Type::Primitive(PrimitiveType::O) => 16,
+            Type::Primitive(PrimitiveType::e) => 2,
+            Type::Primitive(PrimitiveType::f) => 4,
+            Type::Primitive(PrimitiveType::d) => 8,
+            // TODO: `long double` can be 10 or 12 bytes. How should this be handled?
+            Type::Primitive(PrimitiveType::D) => 12,
+            //M, // uint64_t (x86 MMX vector type)
+            Type::Primitive(PrimitiveType::Q) => 16,
+            Type::Primitive(PrimitiveType::v) => 0,
+            _ => todo!("missing type"),
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for Type {
+    type Error = anyhow::Error;
+    fn try_from(s: &[u8]) -> Result<Type> {
+        match s {
+            b"bool" | b"_Bool" => Ok(Type::Bool),
+            b"int8_t" | b"signed char" | b"i8" => Ok(Type::Primitive(PrimitiveType::b)),
+            b"uint8_t" | b"unsigned char" | b"u8" => Ok(Type::Primitive(PrimitiveType::B)),
+            b"int16_t" | b"short" | b"i16" => Ok(Type::Primitive(PrimitiveType::h)),
+            b"uint16_t" | b"unsigned short" | b"u16" => Ok(Type::Primitive(PrimitiveType::H)),
+            b"int32_t" | b"int" | b"i32" => Ok(Type::Primitive(PrimitiveType::i)),
+            b"uint32_t" | b"unsigned" | b"u32" => Ok(Type::Primitive(PrimitiveType::I)),
+            b"int64_t" | b"long long" | b"i64" => Ok(Type::Primitive(PrimitiveType::l)),
+            b"uint64_t" | b"unsigned long long" | b"u64" => Ok(Type::Primitive(PrimitiveType::L)),
+            b"int128_t" | b"__int128" | b"i128" => Ok(Type::Primitive(PrimitiveType::o)),
+            b"uint128_t" | b"__uint128" | b"u128" => Ok(Type::Primitive(PrimitiveType::O)),
+            b"float16_t" | b"binary16" => Ok(Type::Primitive(PrimitiveType::e)),
+            b"float" | b"f32" => Ok(Type::Primitive(PrimitiveType::f)),
+            b"double" | b"f64" => Ok(Type::Primitive(PrimitiveType::d)),
+            b"long double" => Ok(Type::Primitive(PrimitiveType::D)),
+            //M, // uint64_t (x86 MMX vector type)
+            b"__float128" => Ok(Type::Primitive(PrimitiveType::Q)),
+            b"void" => Ok(Type::Primitive(PrimitiveType::v)),
+            _ => Err(Error::msg("Unknown type")),
+        }
+    }
+}
+
+impl From<&Type> for &'static [u8] {
+    fn from(ty: &Type) -> &'static [u8] {
+        match ty {
+            Type::Bool => b"bool",
+            Type::Primitive(PrimitiveType::b) => b"int8_t",
+            Type::Primitive(PrimitiveType::B) => b"uint8_t",
+            Type::Primitive(PrimitiveType::h) => b"int16_t",
+            Type::Primitive(PrimitiveType::H) => b"uint16_t",
+            Type::Primitive(PrimitiveType::i) => b"int32_t",
+            Type::Primitive(PrimitiveType::I) => b"uint32_t",
+            Type::Primitive(PrimitiveType::l) => b"int64_t",
+            Type::Primitive(PrimitiveType::L) => b"uint64_t",
+            Type::Primitive(PrimitiveType::o) => b"int128_t",
+            Type::Primitive(PrimitiveType::O) => b"uint128_t",
+            Type::Primitive(PrimitiveType::e) => b"float16_t",
+            Type::Primitive(PrimitiveType::f) => b"float",
+            Type::Primitive(PrimitiveType::d) => b"double",
+            Type::Primitive(PrimitiveType::D) => b"long double",
+            //M, // uint64_t (x86 MMX vector type)
+            Type::Primitive(PrimitiveType::Q) => b"__float128",
+            Type::Primitive(PrimitiveType::v) => b"void",
+            _ => todo!("missing type"),
+        }
+    }
 }
 
 struct TypeVisitor;
