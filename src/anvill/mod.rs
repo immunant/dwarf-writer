@@ -88,6 +88,14 @@ impl Arg {
     pub fn name(&self) -> Option<&str> {
         self.name.as_ref().map(|s| s.as_str())
     }
+
+    pub fn location(&self) -> &Tagged {
+        &self.value.location
+    }
+
+    pub fn ty(&self) -> &Type {
+        &self.value.r#type
+    }
 }
 
 /// Represents a single Anvill input file.
@@ -165,32 +173,26 @@ pub struct Arg {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Value<T: ValueLocation> {
     #[serde(flatten)]
-    t: T,
+    location: T,
     r#type: Type,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum Tagged {
-    memory { register: Register, offset: u64 },
+    memory { register: Register, offset: i64 },
     register(Register),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
 pub enum Untagged {
-    memory { register: Register, offset: u64 },
+    memory { register: Register, offset: i64 },
     register(Register),
 }
 
 pub trait ValueLocation {}
 impl ValueLocation for Tagged {}
 impl ValueLocation for Untagged {}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Memory {
-    register: Register,
-    offset: u64,
-}
 
 // Deriving `PartialOrd` and `Ord` here and for `Type` to allow sorting and
 // deduping the Vec of types for a given instance of `AnvillHints`. The ordering
@@ -251,46 +253,47 @@ pub enum Register {
     SPARC(SPARCRegister),
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum X86Register {
-    RAX,
-    RCX,
-    RDX,
-    RBX,
-    RSI,
-    RDI,
-    RSP,
-    RBP,
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
-    R13,
-    R14,
-    R15,
+    RAX = 0,
+    RDX = 1,
+    RCX = 2,
+    RBX = 3,
+    RSI = 4,
+    RDI = 5,
+    RBP = 6,
+    RSP = 7,
+    R8 = 8,
+    R9 = 9,
+    R10 = 10,
+    R11 = 11,
+    R12 = 12,
+    R13 = 13,
+    R14 = 14,
+    R15 = 15,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum ARMRegister {
-    LR,
-    SP,
-    R0,
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
+    R0 = 0,
+    R1 = 1,
+    R2 = 2,
+    R3 = 3,
+    R4 = 4,
+    R5 = 5,
+    R6 = 6,
+    R7 = 7,
+    R8 = 8,
+    R9 = 9,
+    R10 = 10,
+    R11 = 11,
+    R12 = 12,
+    SP = 13,
+    LR = 14,
+    PC = 15,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum SPARCRegister {}
 
 #[cfg(test)]
