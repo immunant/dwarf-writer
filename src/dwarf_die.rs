@@ -68,30 +68,30 @@ impl<'a> DIERef<'a> {
             }
 
             // Update function parameters
-            if let Some(parameters) = fn_data.func.parameters() {
-                for param in parameters {
-                    // Search for an existing param DIE by location
-                    let die = unit.get(self_id);
-                    let existing_die_id = die.children().find(|&&child_id| {
+            if let Some(new_params) = fn_data.func.parameters() {
+                // Clear all existing parameters to avoid duplicates
+                let die = unit.get(self_id);
+                let existing_params: Vec<_> = die
+                    .children()
+                    .filter_map(|&child_id| {
                         let child_die = unit.get(child_id);
                         let child_tag = child_die.tag();
-                        let location_attr = child_die
-                            .get(DW_AT_location)
-                            .expect("No DW_AT_location found in DW_TAG_formal_parameter DIE");
-                        let param_location = dwarf_location(&param.location());
-                        child_tag == DW_TAG_formal_parameter && *location_attr == param_location
-                    });
+                        if child_tag == DW_TAG_formal_parameter {
+                            Some(child_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let die = unit.get_mut(self_id);
+                for param in existing_params {
+                    die.delete_child(param);
+                }
 
-                    // Add a formal parameter DIE if an existing DIE wasn't found
-                    let param_id = match existing_die_id {
-                        Some(id) => *id,
-                        None => {
-                            let id = unit.add(self_id, DW_TAG_formal_parameter);
-                            unit.get_mut(id)
-                                .set(DW_AT_location, dwarf_location(&param.location()));
-                            id
-                        },
-                    };
+                for param in new_params {
+                    let param_id = unit.add(self_id, DW_TAG_formal_parameter);
+                    let die = unit.get_mut(param_id);
+                    die.set(DW_AT_location, dwarf_location(&param.location()));
                     let param_die = unit.get_mut(param_id);
                     if let Some(param_name) = param.name() {
                         param_die.set(
@@ -134,10 +134,10 @@ impl<'a> DIERef<'a> {
     }
 
     pub fn create_type(&mut self, ty: &anvill::Type) {
-        let die = self.unit.get_mut(self.self_id);
-        let ty_name: &[u8] = ty.into();
-        die.set(DW_AT_name, AttributeValue::String(ty_name.to_vec()));
-        // TODO: DW_AT_encoding
-        die.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
+        //let die = self.unit.get_mut(self.self_id);
+        //let ty_name: &[u8] = ty.into();
+        //die.set(DW_AT_name, AttributeValue::String(ty_name.to_vec()));
+        //// TODO: DW_AT_encoding
+        //die.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
     }
 }
