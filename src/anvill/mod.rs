@@ -40,6 +40,7 @@ pub struct FunctionRef<'a> {
 }
 
 impl AnvillHints {
+    /// Returns a map from addresses to functions, adding its name if it's provided.
     pub fn functions(&self) -> AnvillFnMap {
         let mut res = HashMap::new();
         let funcs = self.functions.as_ref();
@@ -56,6 +57,7 @@ impl AnvillHints {
         res
     }
 
+    /// Gets all unique types from variables, function parameters and return types.
     pub fn types(&self) -> Vec<&Type> {
         let mut res: Vec<_> = self
             .functions()
@@ -309,6 +311,16 @@ pub enum ARMRegister {
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum SPARCRegister {}
+
+impl From<Register> for u16 {
+    fn from(r: Register) -> u16 {
+        match r {
+            Register::X86(r) => r as u16,
+            Register::ARM(r) => r as u16,
+            Register::SPARC(r) => r as u16,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

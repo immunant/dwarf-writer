@@ -1,25 +1,17 @@
 use crate::anvill;
+use crate::into_gimli::IntoGimli;
 use anyhow::Result;
 use gimli::write::{Address, AttributeValue, Expression, StringTable};
 use std::convert::TryInto;
 
 pub fn dwarf_location(location: &anvill::Tagged) -> AttributeValue {
-    use anvill::{Tagged, X86Register};
-
-    fn reg_num(r: &anvill::Register) -> u16 {
-        use anvill::Register;
-        match r {
-            Register::X86(r) => *r as u16,
-            Register::ARM(r) => *r as u16,
-            Register::SPARC(r) => *r as u16,
-        }
-    }
+    use anvill::Tagged;
 
     let mut expr = Expression::new();
     match location {
-        Tagged::register(reg) => expr.op_reg(gimli::Register(reg_num(reg))),
+        Tagged::register(reg) => expr.op_reg(reg.into_gimli()),
         Tagged::memory { register, offset } => {
-            expr.op_breg(gimli::Register(reg_num(register)), *offset)
+            expr.op_breg(register.into_gimli(), *offset)
         },
     }
     AttributeValue::Exprloc(expr)

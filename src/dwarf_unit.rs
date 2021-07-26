@@ -1,11 +1,8 @@
-use crate::anvill;
 use crate::anvill::AnvillCtxt;
 use crate::dwarf_die::EntryRef;
 use crate::elf::ELF;
-use anyhow::Result;
 use gimli::constants::*;
-use gimli::write::{Dwarf, EndianVec, LineProgram, Sections, Unit};
-use gimli::RunTimeEndian;
+use gimli::write::{LineProgram, Unit};
 use gimli::{Encoding, Format};
 use object::Object;
 

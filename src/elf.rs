@@ -1,5 +1,5 @@
 use anyhow::Result;
-use gimli::read;
+use crate::into_gimli::IntoGimli;
 use gimli::write;
 use gimli::write::{EndianVec, Sections};
 use gimli::{Dwarf, EndianSlice, RunTimeEndian, SectionId};
@@ -75,21 +75,5 @@ impl ELF {
             }
             Ok(())
         })
-    }
-}
-
-/// Generic trait for converting to gimli-specific types.
-pub trait IntoGimli<T> {
-    fn into_gimli(self) -> T;
-}
-
-impl IntoGimli<gimli::RunTimeEndian> for object::endian::Endianness {
-    fn into_gimli(self) -> gimli::RunTimeEndian {
-        use gimli::RunTimeEndian as gimli;
-        use object::endian::Endianness as obj;
-        match self {
-            obj::Little => gimli::Little,
-            obj::Big => gimli::Big,
-        }
     }
 }
