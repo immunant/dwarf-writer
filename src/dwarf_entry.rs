@@ -41,7 +41,7 @@ impl<'a> EntryRef<'a> {
         let EntryRef {
             unit,
             self_id,
-            strings,
+            strings: _,
         } = self;
         let self_id = *self_id;
         let die = unit.get(self_id);

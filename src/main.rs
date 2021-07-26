@@ -7,7 +7,7 @@ use structopt::StructOpt;
 
 mod anvill;
 mod dwarf_attr;
-mod dwarf_die;
+mod dwarf_entry;
 mod dwarf_unit;
 mod elf;
 mod into_gimli;

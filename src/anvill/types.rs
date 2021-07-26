@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 use std::fmt;
 
 impl Type {
+    /// Get the size of an anvill type.
     pub fn size(&self) -> u8 {
         match self {
             Type::Bool => 1,
@@ -36,6 +37,7 @@ impl Type {
 
 impl TryFrom<&[u8]> for Type {
     type Error = anyhow::Error;
+    /// Try converting a common type name to an anvill type.
     fn try_from(s: &[u8]) -> Result<Type> {
         match s {
             b"bool" | b"_Bool" => Ok(Type::Bool),
@@ -62,6 +64,9 @@ impl TryFrom<&[u8]> for Type {
 }
 
 impl From<&Type> for &'static [u8] {
+    /// Convert an anvill type to our canonical type name for it. Note our
+    /// choice of canonical type name is arbitrary but we choose one of its
+    /// common names to avoid duplicating debug info as much as possible.
     fn from(ty: &Type) -> &'static [u8] {
         match ty {
             Type::Bool => b"bool",

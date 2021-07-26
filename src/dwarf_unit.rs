@@ -1,5 +1,5 @@
 use crate::anvill::AnvillCtxt;
-use crate::dwarf_die::EntryRef;
+use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
 use gimli::constants::*;
 use gimli::write::{LineProgram, Unit};
