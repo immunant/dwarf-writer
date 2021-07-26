@@ -10,10 +10,12 @@ use gimli::RunTimeEndian;
 use gimli::{Encoding, Format};
 use object::Object;
 
+pub fn process_anvill(elf: &mut ELF /* , anvill_ctxt: AnvillCtxt */) {}
+/*
 pub fn process_dwarf_units(
     mut elf: ELF, mut anvill_fn_map: Option<AnvillFnMap>, anvill_types: Option<Vec<&anvill::Type>>,
 ) -> Result<Sections<EndianVec<RunTimeEndian>>> {
-    elf.with_dwarf_mut(|elf, dwarf| {
+    elf.write_dwarf2(|elf, dwarf| {
         if dwarf.units.count() == 0 {
             let format = if elf.is_64() {
                 Format::Dwarf64
@@ -94,3 +96,4 @@ pub fn process_dwarf_units(
         Ok(())
     })
 }
+*/

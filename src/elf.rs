@@ -1,4 +1,5 @@
 use anyhow::Result;
+use gimli::read;
 use gimli::write;
 use gimli::write::{EndianVec, Sections};
 use gimli::{Dwarf, EndianSlice, RunTimeEndian, SectionId};
@@ -8,72 +9,66 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
 
+/// An ELF and its DWARF debug data.
 #[derive(Debug)]
 pub struct ELF {
-    buffer: Vec<u8>,
+    /// The initial data read from the ELF file. This buffer is not kept in sync
+    /// with the DWARF data written through the `dwarf` field so it should only
+    /// be used to read the ELF object data.
+    initial_buffer: Vec<u8>,
+    /// Mutable DWARF debug data.
+    pub dwarf: write::Dwarf,
 }
 
 impl ELF {
+    /// Creates a new `ELF` from an input file path.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut file = fs::File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
-
-        Ok(ELF { buffer })
-    }
-
-    fn object(&self) -> Result<object::File> {
-        Ok(object::File::parse(self.buffer.as_slice())?)
-    }
-
-    /// Calls the specified closure with immutable access to the DWARF sections
-    /// provided by `gimli::read::Dwarf`
-    pub fn with_dwarf<F, R>(&self, mut f: F) -> Result<R>
-    where F: FnMut(&object::File, &Dwarf<EndianSlice<RunTimeEndian>>) -> Result<R> {
-        let obj = self.object()?;
+        let obj = object::File::parse(buffer.as_slice())?;
         let endianness = obj.endianness().into_gimli();
 
+        // Specify how to load an ELF section
         let load_section = |id: SectionId| -> Result<Cow<[u8]>> {
-            let empty: Cow<[u8]> = Cow::Borrowed(&[][..]);
-            Ok(obj
-                .section_by_name(id.name())
-                .map(|ref section| {
-                    section
-                        .uncompressed_data()
-                        .expect("Could not decompress section data")
-                })
-                .unwrap_or(empty))
+            let empty = Cow::Borrowed(&[][..]);
+            let section = obj.section_by_name(id.name()).map(|ref section| {
+                section
+                    .uncompressed_data()
+                    .expect("Could not decompress section data")
+            });
+            Ok(section.unwrap_or(empty))
         };
+        let owned_dwarf = Dwarf::load(load_section)?;
+        let read_only_dwarf = owned_dwarf.borrow(|section| EndianSlice::new(&section, endianness));
+        let dwarf = write::Dwarf::from(&read_only_dwarf, &|addr| {
+            Some(write::Address::Constant(addr))
+        })?;
 
-        let dwarf_cow = Dwarf::load(load_section)?;
-
-        let dwarf = dwarf_cow.borrow(|section| EndianSlice::new(&section, endianness));
-        Ok(f(&obj, &dwarf)?)
-    }
-
-    // TODO: Returning `Result<R>` here and having a separate method for returning
-    // the sections might be clearer
-    /// Calls the specified closure with mutable access to the DWARF sections
-    /// provided by `gimli::write::Dwarf`
-    pub fn with_dwarf_mut<F>(&mut self, mut f: F) -> Result<Sections<EndianVec<RunTimeEndian>>>
-    where F: FnMut(&object::File, &mut write::Dwarf) -> Result<()> {
-        let obj = self.object()?;
-        let endianness = obj.endianness().into_gimli();
-
-        self.with_dwarf(|obj, dwarf| {
-            let mut dwarf =
-                write::Dwarf::from(&dwarf, &|addr| Some(write::Address::Constant(addr)))?;
-            f(obj, &mut dwarf)?;
-            let mut sections = Sections::new(EndianVec::new(endianness));
-            dwarf.write(&mut sections)?;
-            Ok(sections)
+        Ok(Self {
+            initial_buffer: buffer,
+            dwarf,
         })
     }
 
-    pub fn write_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
+    /// Parses the ELF object data.
+    pub fn object(&self) -> object::File {
+        // The constructor ensures that the buffer is a valid object file
+        object::File::parse(self.initial_buffer.as_slice()).unwrap()
+    }
+
+    /// Write the DWARF debug data to ELF sections.
+    pub fn sections(&mut self) -> Result<Sections<EndianVec<RunTimeEndian>>> {
+        let endianness = self.object().endianness().into_gimli();
+        let mut sections = Sections::new(EndianVec::new(endianness));
+        self.dwarf.write(&mut sections)?;
+        Ok(sections)
+    }
+
+    /// Dump the specified ELF sections to individual files.
+    pub fn dump_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
         sections.for_each(|id, data| {
             if !data.slice().is_empty() {
-                println!("Writing {} section", id.name());
                 let file_name = &id.name()[1..];
                 let mut file = fs::File::create(file_name)?;
                 file.write_all(data.slice())?;

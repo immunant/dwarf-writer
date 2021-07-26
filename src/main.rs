@@ -1,6 +1,6 @@
 use anvill::AnvillHints;
 use anyhow::Result;
-use dwarf_unit::process_dwarf_units;
+//use dwarf_unit::process_dwarf_units;
 use elf::ELF;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -42,9 +42,11 @@ fn main() -> Result<()> {
         (None, None)
     };
 
-    let elf = ELF::new(&binary_path)?;
+    let mut elf = ELF::new(&binary_path)?;
 
-    let updated_sections = process_dwarf_units(elf, anvill_fn_map, anvill_types)?;
+    let updated_sections = elf.sections()?;
 
-    ELF::write_sections(&updated_sections)
+    ELF::dump_sections(&updated_sections)?;
+
+    Ok(())
 }
