@@ -4,15 +4,13 @@ use anyhow::Result;
 use gimli::write::{Address, AttributeValue, Expression, StringTable};
 use std::convert::TryInto;
 
-pub fn dwarf_location(location: &anvill::Tagged) -> AttributeValue {
-    use anvill::Tagged;
+pub fn dwarf_location(location: &anvill::TaggedLocation) -> AttributeValue {
+    use anvill::TaggedLocation;
 
     let mut expr = Expression::new();
     match location {
-        Tagged::register(reg) => expr.op_reg(reg.into_gimli()),
-        Tagged::memory { register, offset } => {
-            expr.op_breg(register.into_gimli(), *offset)
-        },
+        TaggedLocation::register(reg) => expr.op_reg(reg.into_gimli()),
+        TaggedLocation::memory { register, offset } => expr.op_breg(register.into_gimli(), *offset),
     }
     AttributeValue::Exprloc(expr)
 }

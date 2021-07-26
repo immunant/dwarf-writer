@@ -18,7 +18,7 @@ impl IntoGimli<gimli::RunTimeEndian> for object::endian::Endianness {
 
 impl IntoGimli<gimli::Register> for &anvill::Register {
     fn into_gimli(self) -> gimli::Register {
-        use anvill::Register as Register;
+        use anvill::Register;
         let reg_num = match self {
             Register::X86(r) => *r as u16,
             Register::ARM(r) => *r as u16,

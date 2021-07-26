@@ -40,7 +40,8 @@ pub struct FunctionRef<'a> {
 }
 
 impl AnvillHints {
-    /// Returns a map from addresses to functions, adding its name if it's provided.
+    /// Returns a map from addresses to functions, adding its name if it's
+    /// provided.
     pub fn functions(&self) -> AnvillFnMap {
         let mut res = HashMap::new();
         let funcs = self.functions.as_ref();
@@ -57,7 +58,8 @@ impl AnvillHints {
         res
     }
 
-    /// Gets all unique types from variables, function parameters and return types.
+    /// Gets all unique types from variables, function parameters and return
+    /// types.
     pub fn types(&self) -> Vec<&Type> {
         let mut res: Vec<_> = self
             .functions()
@@ -105,7 +107,7 @@ impl Arg {
         self.name.as_ref().map(|s| s.as_str())
     }
 
-    pub fn location(&self) -> &Tagged {
+    pub fn location(&self) -> &TaggedLocation {
         &self.value.location
     }
 
@@ -150,10 +152,10 @@ pub enum OS {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Function {
     address: u64,
-    return_address: Value<Tagged>,
-    return_stack_pointer: Option<Value<Untagged>>,
+    return_address: Value<TaggedLocation>,
+    return_stack_pointer: Option<Value<UntaggedLocation>>,
     parameters: Option<Vec<Arg>>,
-    return_values: Option<Vec<Value<Tagged>>>,
+    return_values: Option<Vec<Value<TaggedLocation>>>,
     is_variadic: Option<bool>,
     is_noreturn: Option<bool>,
     calling_convention: Option<CallingConvention>,
@@ -183,7 +185,7 @@ pub struct MemoryRange {
 pub struct Arg {
     name: Option<String>,
     #[serde(flatten)]
-    value: Value<Tagged>,
+    value: Value<TaggedLocation>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -194,21 +196,21 @@ pub struct Value<T: ValueLocation> {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub enum Tagged {
+pub enum TaggedLocation {
     memory { register: Register, offset: i64 },
     register(Register),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
-pub enum Untagged {
+pub enum UntaggedLocation {
     memory { register: Register, offset: i64 },
     register(Register),
 }
 
 pub trait ValueLocation {}
-impl ValueLocation for Tagged {}
-impl ValueLocation for Untagged {}
+impl ValueLocation for TaggedLocation {}
+impl ValueLocation for UntaggedLocation {}
 
 // Deriving `PartialOrd` and `Ord` here and for `Type` to allow sorting and
 // deduping the Vec of types for a given instance of `AnvillHints`. The ordering

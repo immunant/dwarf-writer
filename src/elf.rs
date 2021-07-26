@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::into_gimli::IntoGimli;
+use anyhow::Result;
 use gimli::write;
 use gimli::write::{EndianVec, Sections};
 use gimli::{Dwarf, EndianSlice, RunTimeEndian, SectionId};
