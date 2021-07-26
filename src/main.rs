@@ -1,6 +1,6 @@
 use anvill::AnvillHints;
 use anyhow::Result;
-//use dwarf_unit::process_dwarf_units;
+use dwarf_unit::process_anvill;
 use elf::ELF;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -22,27 +22,15 @@ struct Opt {
     mindsight_path: Option<PathBuf>,
 }
 
-//pub type TypeMap<'a, 'b> = HashMap<&'a str, EntryRef<'b>>;
-
 fn main() -> Result<()> {
     let opt = Opt::from_args();
-    let binary_path = opt.binary_path;
-    let anvill_path = opt.anvill_path;
-    let anvill_hints = if let Some(path) = anvill_path {
-        Some(AnvillHints::new(path)?)
-    } else {
-        None
-    };
-    //let anvill_hints = anvill_path.map(|path| AnvillHints::new(path));
-    // The `update_fn` pass will remove entries from this map then the `create_fn`
-    // will create DIEs for the remaining entries
-    let (anvill_fn_map, anvill_types) = if let Some(hint) = anvill_hints.as_ref() {
-        (Some(hint.functions()), Some(hint.types()))
-    } else {
-        (None, None)
-    };
 
-    let mut elf = ELF::new(&binary_path)?;
+    let mut elf = ELF::new(&opt.binary_path)?;
+
+    if let Some(path) = opt.anvill_path {
+        let hints = AnvillHints::new(path)?;
+        process_anvill(&mut elf, hints.ctxt());
+    };
 
     let updated_sections = elf.sections()?;
 

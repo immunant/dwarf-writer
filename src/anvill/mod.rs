@@ -9,12 +9,26 @@ use std::{fs, io};
 mod types;
 
 impl AnvillHints {
+    /// Loads a file to create a new `AnvillHints`.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = fs::File::open(path)?;
         let reader = io::BufReader::new(file);
         let hints = serde_json::from_reader(reader)?;
         Ok(hints)
     }
+
+    /// Anvill data in a format suitable for writing as DWARF debug info.
+    pub fn ctxt(&self) -> AnvillCtxt {
+        AnvillCtxt {
+            fn_map: self.functions(),
+            types: self.types(),
+        }
+    }
+}
+
+pub struct AnvillCtxt<'a> {
+    pub fn_map: AnvillFnMap<'a>,
+    pub types: Vec<&'a Type>,
 }
 
 pub type AnvillFnMap<'a> = HashMap<u64, FunctionRef<'a>>;
