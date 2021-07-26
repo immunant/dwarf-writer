@@ -1,6 +1,6 @@
 use crate::anvill;
 use crate::anvill::AnvillFnMap;
-use crate::dwarf_die::DIERef;
+use crate::dwarf_die::EntryRef;
 use crate::elf::ELF;
 use anyhow::Result;
 use gimli::constants::*;
@@ -48,7 +48,7 @@ pub fn process_dwarf_units(
                         let child_die = unit.get(child_id);
                         let tag = child_die.tag();
                         if tag == DW_TAG_base_type || tag == DW_TAG_pointer_type {
-                            let die_ref = DIERef::new(unit, child_id, &dwarf.strings);
+                            let die_ref = EntryRef::new(unit, child_id, &dwarf.strings);
                             if die_ref.type_matches(ty) {
                                 type_found = true;
                             }
@@ -57,7 +57,7 @@ pub fn process_dwarf_units(
                     if !type_found {
                         // TODO: Handle pointer_type
                         let ty_id = unit.add(unit.root(), DW_TAG_base_type);
-                        let mut die_ref = DIERef::new(unit, ty_id, &dwarf.strings);
+                        let mut die_ref = EntryRef::new(unit, ty_id, &dwarf.strings);
                         die_ref.create_type(ty);
                     }
                 }
@@ -75,7 +75,7 @@ pub fn process_dwarf_units(
                     println!("Processing DIE {:?}", die.tag().static_string());
                     if die.tag() == DW_TAG_subprogram {
                         if let Some(fn_map) = &mut anvill_fn_map {
-                            let mut die_ref = DIERef::new(unit, die_id, &dwarf.strings);
+                            let mut die_ref = EntryRef::new(unit, die_id, &dwarf.strings);
                             die_ref.update_fn(fn_map);
                         }
                     }
@@ -86,7 +86,7 @@ pub fn process_dwarf_units(
                 let remaining_entries = fn_map.keys().cloned().collect::<Vec<_>>();
                 for addr in remaining_entries {
                     let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
-                    let mut die_ref = DIERef::new(unit, fn_id, &dwarf.strings);
+                    let mut die_ref = EntryRef::new(unit, fn_id, &dwarf.strings);
                     die_ref.create_fn(addr, fn_map);
                 }
             }

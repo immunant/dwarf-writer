@@ -7,7 +7,7 @@ use gimli::write::{Address, AttributeValue, StringTable, Unit, UnitEntryId};
 
 // References to a subset of `gimli::write::Dwarf` to modify a specific DIE.
 #[derive(Debug)]
-pub struct DIERef<'a> {
+pub struct EntryRef<'a> {
     // The unit containing the DIE
     unit: &'a mut Unit,
     // The DIE's ID
@@ -18,9 +18,9 @@ pub struct DIERef<'a> {
     //types: &'a TypeMap,
 }
 
-impl<'a> DIERef<'a> {
+impl<'a> EntryRef<'a> {
     pub fn new(unit: &'a mut Unit, self_id: UnitEntryId, strings: &'a StringTable) -> Self {
-        DIERef {
+        EntryRef {
             unit,
             self_id,
             strings,
@@ -38,7 +38,7 @@ impl<'a> DIERef<'a> {
 
     /// Updates an existing function's subprogram DIE.
     pub fn update_fn(&mut self, anvill_data: &mut AnvillFnMap) {
-        let DIERef {
+        let EntryRef {
             unit,
             self_id,
             strings,

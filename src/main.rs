@@ -22,7 +22,7 @@ struct Opt {
     mindsight_path: Option<PathBuf>,
 }
 
-//pub type TypeMap<'a, 'b> = HashMap<&'a str, DIERef<'b>>;
+//pub type TypeMap<'a, 'b> = HashMap<&'a str, EntryRef<'b>>;
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
