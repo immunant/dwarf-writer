@@ -5,17 +5,16 @@ use gimli::constants;
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, StringTable, Unit, UnitEntryId};
 
-// References to a subset of `gimli::write::Dwarf` to modify a specific DIE.
+/// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]
 pub struct EntryRef<'a> {
-    // The unit containing the DIE
+    // The unit containing the entry.
     unit: &'a mut Unit,
-    // The DIE's ID
+    // The entry's ID.
     self_id: UnitEntryId,
 
     // Miscellaneous DWARF info
     strings: &'a StringTable,
-    //types: &'a TypeMap,
 }
 
 impl<'a> EntryRef<'a> {
@@ -26,17 +25,17 @@ impl<'a> EntryRef<'a> {
             strings,
         }
     }
-    /// Initializes a newly created subprogram DIE.
+    /// Initializes a newly created subprogram entry.
     pub fn create_fn(&mut self, addr: u64, anvill_data: &mut AnvillFnMap) {
-        let die = self.unit.get_mut(self.self_id);
-        die.set(
+        let entry = self.unit.get_mut(self.self_id);
+        entry.set(
             DW_AT_low_pc,
             AttributeValue::Address(Address::Constant(addr)),
         );
         self.update_fn(anvill_data)
     }
 
-    /// Updates an existing function's subprogram DIE.
+    /// Updates an existing function's subprogram entry.
     pub fn update_fn(&mut self, anvill_data: &mut AnvillFnMap) {
         let EntryRef {
             unit,
@@ -44,38 +43,38 @@ impl<'a> EntryRef<'a> {
             strings: _,
         } = self;
         let self_id = *self_id;
-        let die = unit.get(self_id);
+        let entry = unit.get(self_id);
 
         // Get this function's address from the existing DWARF data
-        let low_pc_attr = die
+        let low_pc_attr = entry
             .get(DW_AT_low_pc)
-            .expect("No DW_AT_low_pc found in DW_TAG_subprogram DIE");
+            .expect("No DW_AT_low_pc found in DW_TAG_subprogram entry");
         let start_address = low_pc_to_u64(low_pc_attr);
 
         // Search for this function's anvill data by start address
         let fn_data = anvill_data.remove(&start_address);
         if let Some(fn_data) = fn_data {
             // Update function name overwriting any existing DW_AT_name
-            let existing_name = die.get(DW_AT_name);
+            let existing_name = entry.get(DW_AT_name);
             let new_name = match (existing_name, fn_data.name) {
                 (None, None) => Some(format!("__unnamed_fn_{}", start_address)),
                 (Some(_), None) => None,
                 (_, Some(name)) => Some(name.to_string()),
             };
             if let Some(name) = new_name {
-                let die = unit.get_mut(self_id);
-                die.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
+                let entry = unit.get_mut(self_id);
+                entry.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
 
             // Update function parameters
             if let Some(new_params) = fn_data.func.parameters() {
                 // Clear all existing parameters to avoid duplicates
-                let die = unit.get(self_id);
-                let existing_params: Vec<_> = die
+                let entry = unit.get(self_id);
+                let existing_params: Vec<_> = entry
                     .children()
                     .filter_map(|&child_id| {
-                        let child_die = unit.get(child_id);
-                        let child_tag = child_die.tag();
+                        let child_entry = unit.get(child_id);
+                        let child_tag = child_entry.tag();
                         if child_tag == DW_TAG_formal_parameter {
                             Some(child_id)
                         } else {
@@ -83,42 +82,42 @@ impl<'a> EntryRef<'a> {
                         }
                     })
                     .collect();
-                let die = unit.get_mut(self_id);
+                let entry = unit.get_mut(self_id);
                 for param in existing_params {
-                    die.delete_child(param);
+                    entry.delete_child(param);
                 }
 
                 for param in new_params {
                     let param_id = unit.add(self_id, DW_TAG_formal_parameter);
-                    let die = unit.get_mut(param_id);
-                    die.set(DW_AT_location, dwarf_location(&param.location()));
-                    let param_die = unit.get_mut(param_id);
+                    let entry = unit.get_mut(param_id);
+                    entry.set(DW_AT_location, dwarf_location(&param.location()));
+                    let param_entry = unit.get_mut(param_id);
                     if let Some(param_name) = param.name() {
-                        param_die.set(
+                        param_entry.set(
                             DW_AT_name,
                             AttributeValue::String(param_name.as_bytes().to_vec()),
                         );
                     };
                 }
-                // Mark the subprogram DIE as prototyped
-                let die = unit.get_mut(self_id);
-                die.set(DW_AT_prototyped, AttributeValue::Flag(true));
+                // Mark the subprogram entry as prototyped
+                let entry = unit.get_mut(self_id);
+                entry.set(DW_AT_prototyped, AttributeValue::Flag(true));
             }
         }
     }
 
-    /// Checks if the given anvill type matches the type DIE.
+    /// Checks if the given anvill type matches the type entry.
     ///
     /// A type may have various string representations (e.g. `bool` from
     /// `stdbool.h` expands to `_Bool` while C++/rust's boolean is `bool`).
     /// meaning this method may produce false negatives. In the case of a
-    /// false negative, a new type DIE will be created for the incorrectly
-    /// identified type, but subsequent comparisons between the new DIE and
+    /// false negative, a new type entry will be created for the incorrectly
+    /// identified type, but subsequent comparisons between the new entry and
     /// the type will always succeed.
     pub fn type_matches(&self, ty: &anvill::Type) -> bool {
-        let die = self.unit.get(self.self_id);
-        match die.tag() {
-            constants::DW_TAG_base_type => match die.get(DW_AT_name) {
+        let entry = self.unit.get(self.self_id);
+        match entry.tag() {
+            constants::DW_TAG_base_type => match entry.get(DW_AT_name) {
                 Some(name_attr) => {
                     if let Some(name) = name_to_anvill_ty(name_attr, self.strings) {
                         name == *ty
@@ -134,10 +133,10 @@ impl<'a> EntryRef<'a> {
     }
 
     pub fn create_type(&mut self, ty: &anvill::Type) {
-        //let die = self.unit.get_mut(self.self_id);
+        //let entry = self.unit.get_mut(self.self_id);
         //let ty_name: &[u8] = ty.into();
-        //die.set(DW_AT_name, AttributeValue::String(ty_name.to_vec()));
+        //entry.set(DW_AT_name, AttributeValue::String(ty_name.to_vec()));
         //// TODO: DW_AT_encoding
-        //die.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
+        //entry.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
     }
 }

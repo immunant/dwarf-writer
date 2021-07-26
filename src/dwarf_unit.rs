@@ -38,7 +38,10 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillCtxt) {
     let unit = dwarf.units.get_mut(unit_id);
 
     let root_entry = unit.get(unit.root());
-    println!("Processing root DIE {:?}", root_entry.tag().static_string());
+    println!(
+        "Processing root entry {:?}",
+        root_entry.tag().static_string()
+    );
 
     // Get child entry IDs
     let mut children = root_entry.children().cloned().collect::<Vec<_>>();
