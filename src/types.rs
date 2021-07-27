@@ -3,7 +3,11 @@ use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct CanonicalTypeName(TypeName);
+
+// Types may have various representations so `TypeName`s should be converted to
+// `CanonicalTypeName`s before being compared.
 pub type TypeName = Vec<u8>;
+
 pub type TypeMap = HashMap<CanonicalTypeName, UnitEntryId>;
 
 impl From<TypeName> for CanonicalTypeName {
@@ -30,5 +34,11 @@ impl From<TypeName> for CanonicalTypeName {
             s => s,
         };
         CanonicalTypeName(canonical_name.to_vec())
+    }
+}
+
+impl From<CanonicalTypeName> for Vec<u8> {
+    fn from(name: CanonicalTypeName) -> Vec<u8> {
+        name.0
     }
 }

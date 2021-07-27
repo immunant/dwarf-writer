@@ -1,7 +1,6 @@
 use crate::anvill;
 use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
-use gimli::constants;
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, StringTable, Unit, UnitEntryId};
 
@@ -106,39 +105,10 @@ impl<'a> EntryRef<'a> {
         }
     }
 
-    /*
-    /// Checks if the given anvill type matches the type entry.
-    ///
-    /// A type may have various string representations (e.g. `bool` from
-    /// `stdbool.h` expands to `_Bool` while C++/rust's boolean is `bool`).
-    /// meaning this method may produce false negatives. In the case of a
-    /// false negative, a new type entry will be created for the incorrectly
-    /// identified type, but subsequent comparisons between the new entry and
-    /// the type will always succeed.
-    pub fn type_matches(&self, ty: &anvill::Type) -> bool {
-        let entry = self.unit.get(self.self_id);
-        match entry.tag() {
-            constants::DW_TAG_base_type => match entry.get(DW_AT_name) {
-                Some(name_attr) => {
-                    if let Some(name) = name_to_anvill_ty(name_attr, self.strings) {
-                        name == *ty
-                    } else {
-                        false
-                    }
-                },
-                None => false,
-            },
-            constants::DW_TAG_pointer_type => false,
-            _ => false,
-        }
-    }
-
     pub fn create_type(&mut self, ty: &anvill::Type) {
-        //let entry = self.unit.get_mut(self.self_id);
-        //let ty_name: &[u8] = ty.into();
-        //entry.set(DW_AT_name, AttributeValue::String(ty_name.to_vec()));
-        //// TODO: DW_AT_encoding
-        //entry.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
+        let entry = self.unit.get_mut(self.self_id);
+        entry.set(DW_AT_name, AttributeValue::String(Vec::from(ty.name())));
+        entry.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
+        // TODO: Set DW_AT_encoding
     }
-    */
 }

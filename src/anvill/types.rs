@@ -1,11 +1,10 @@
 use super::{PrimitiveType, Type};
 use crate::types::CanonicalTypeName;
-use anyhow::{Error, Result};
+use anyhow::Result;
 use serde::de;
 use serde::de::{Deserializer, Unexpected, Visitor};
 use serde::Deserialize;
 use serde_json::json;
-use std::convert::TryFrom;
 use std::fmt;
 
 impl Type {
