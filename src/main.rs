@@ -1,6 +1,6 @@
-use anvill::AnvillHints;
+use anvill::AnvillInput;
 use anyhow::Result;
-use dwarf_unit::process_anvill;
+use dwarf_unit::{create_type_map, process_anvill};
 use elf::ELF;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -11,6 +11,7 @@ mod dwarf_entry;
 mod dwarf_unit;
 mod elf;
 mod into_gimli;
+mod types;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -28,9 +29,11 @@ fn main() -> Result<()> {
 
     let mut elf = ELF::new(&opt.binary_path)?;
 
+    let mut type_map = create_type_map(&elf);
+
     if let Some(path) = opt.anvill_path {
-        let hints = AnvillHints::new(path)?;
-        process_anvill(&mut elf, hints.ctxt());
+        let input = AnvillInput::new(path)?;
+        process_anvill(&mut elf, input.data(), &mut type_map);
     };
 
     let updated_sections = elf.sections()?;

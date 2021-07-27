@@ -51,7 +51,8 @@ impl ELF {
         })
     }
 
-    /// Parses the ELF object data.
+    /// Parses the ELF object data. Note this object data is not kept
+    /// synchronized with changes to DWARF debug data.
     pub fn object(&self) -> object::File {
         // The constructor ensures that the buffer is a valid object file
         object::File::parse(self.initial_buffer.as_slice()).unwrap()

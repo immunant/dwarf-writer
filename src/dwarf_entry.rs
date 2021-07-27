@@ -106,6 +106,7 @@ impl<'a> EntryRef<'a> {
         }
     }
 
+    /*
     /// Checks if the given anvill type matches the type entry.
     ///
     /// A type may have various string representations (e.g. `bool` from
@@ -139,4 +140,5 @@ impl<'a> EntryRef<'a> {
         //// TODO: DW_AT_encoding
         //entry.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
     }
+    */
 }

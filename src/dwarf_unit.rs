@@ -1,12 +1,14 @@
-use crate::anvill::AnvillCtxt;
+use crate::anvill::AnvillData;
+use crate::dwarf_attr::name_as_bytes;
 use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
+use crate::types::TypeMap;
+use gimli::constants;
 use gimli::constants::*;
-use gimli::write::{LineProgram, Unit};
+use gimli::write::{LineProgram, Unit, UnitEntryId};
 use gimli::{Encoding, Format};
 use object::Object;
-
-//pub type TyCtxt<'ty, 'd> = HashMap<&'ty str, EntryRef<'d>>;
+use std::collections::HashMap;
 
 fn create_unit_if_needed(elf: &mut ELF) {
     let is_64_bit = elf.object().is_64();
@@ -29,11 +31,39 @@ fn create_unit_if_needed(elf: &mut ELF) {
     };
 }
 
-pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillCtxt) {
+pub fn create_type_map(elf: &ELF) -> TypeMap {
+    let mut type_map = HashMap::new();
+    if elf.dwarf.units.count() == 0 {
+        type_map
+    } else {
+        let unit_id = elf.dwarf.units.id(0);
+        let unit = elf.dwarf.units.get(unit_id);
+
+        let root = unit.get(unit.root());
+        for &child in root.children() {
+            let entry = unit.get(child);
+            // TODO: Assumes all types are children of the root
+            match entry.tag() {
+                constants::DW_TAG_base_type => {
+                    if let Some(name_attr) = entry.get(DW_AT_name) {
+                        let name = name_as_bytes(name_attr, &elf.dwarf.strings).to_vec();
+                        type_map.insert(name.into(), child);
+                    };
+                },
+                constants::DW_TAG_pointer_type => {
+                    // TODO: Handle this and other missing cases
+                },
+                _ => {},
+            }
+        }
+        type_map
+    }
+}
+
+pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut TypeMap) {
     create_unit_if_needed(elf);
     let dwarf = &mut elf.dwarf;
 
-    // TODO: What's the root unit called again?
     let unit_id = dwarf.units.id(0);
     let unit = dwarf.units.get_mut(unit_id);
 
@@ -43,11 +73,19 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillCtxt) {
         root_entry.tag().static_string()
     );
 
-    // Get child entry IDs
+    // Get entry IDs for root entry's children
     let mut children = root_entry.children().cloned().collect::<Vec<_>>();
-    // Add entry to types that don't already exist
+
+    // Add an entry for each type that doesn't already exist
     for ty in &anvill.types {
+        if !type_map.contains_key(&ty.name()) {}
+
+        /*
         let mut type_found = false;
+        //&
+        //type_map.contains_key(ty.into().to_vec());
+
+
         for &child_id in &children {
             let child_entry = unit.get(child_id);
             let tag = child_entry.tag();
@@ -65,6 +103,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillCtxt) {
             let mut entry_ref = EntryRef::new(unit, ty_id, &dwarf.strings);
             entry_ref.create_type(ty);
         }
+        */
     }
     while !children.is_empty() {
         for entry_id in children.drain(..).collect::<Vec<_>>() {

@@ -8,8 +8,8 @@ use std::{fs, io};
 
 mod types;
 
-impl AnvillHints {
-    /// Loads a file to create a new `AnvillHints`.
+impl AnvillInput {
+    /// Loads a file to create a new `AnvillInput`.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = fs::File::open(path)?;
         let reader = io::BufReader::new(file);
@@ -18,20 +18,20 @@ impl AnvillHints {
     }
 
     /// Anvill data in a format suitable for writing as DWARF debug info.
-    pub fn ctxt(&self) -> AnvillCtxt {
-        AnvillCtxt {
+    pub fn data(&self) -> AnvillData {
+        AnvillData {
             fn_map: self.functions(),
             types: self.types(),
         }
     }
 }
 
-pub struct AnvillCtxt<'a> {
+pub type AnvillFnMap<'a> = HashMap<u64, FunctionRef<'a>>;
+
+pub struct AnvillData<'a> {
     pub fn_map: AnvillFnMap<'a>,
     pub types: Vec<&'a Type>,
 }
-
-pub type AnvillFnMap<'a> = HashMap<u64, FunctionRef<'a>>;
 
 #[derive(Debug)]
 pub struct FunctionRef<'a> {
@@ -39,7 +39,7 @@ pub struct FunctionRef<'a> {
     pub name: Option<&'a str>,
 }
 
-impl AnvillHints {
+impl AnvillInput {
     /// Returns a map from addresses to functions, adding its name if it's
     /// provided.
     pub fn functions(&self) -> AnvillFnMap {
@@ -118,7 +118,7 @@ impl Arg {
 
 /// Represents a single Anvill input file.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AnvillHints {
+pub struct AnvillInput {
     arch: Arch,
     os: OS,
     functions: Option<Vec<Function>>,
@@ -213,7 +213,7 @@ impl ValueLocation for TaggedLocation {}
 impl ValueLocation for UntaggedLocation {}
 
 // Deriving `PartialOrd` and `Ord` here and for `Type` to allow sorting and
-// deduping the Vec of types for a given instance of `AnvillHints`. The ordering
+// deduping the Vec of types for a given instance of `AnvillInput`. The ordering
 // itself can be completely arbitrary.
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum PrimitiveType {
@@ -350,7 +350,7 @@ mod tests {
             let file = fs::File::open(format!("{}/{}", TEST_DIR, test_name))
                 .expect(&format!("Could not open test {}", test_name));
             let reader = io::BufReader::new(file);
-            let _: AnvillHints =
+            let _: AnvillInput =
                 serde_json::from_reader(reader).expect(&format!("Failed test {}", test_name));
         }
     }

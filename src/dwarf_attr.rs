@@ -16,12 +16,14 @@ pub fn dwarf_location(location: &anvill::TaggedLocation) -> AttributeValue {
     AttributeValue::Exprloc(expr)
 }
 
+/*
 /// Converts an `AttributeValue` to an anvill type or returns `None` for custom
 /// types. Note this may produce false `None`s.
 pub fn name_to_anvill_ty(attr: &AttributeValue, strings: &StringTable) -> Option<anvill::Type> {
     let name: Result<anvill::Type> = name_as_bytes(attr, strings).try_into();
     name.ok()
 }
+*/
 
 pub fn name_as_bytes<'a>(attr: &'a AttributeValue, strings: &'a StringTable) -> &'a [u8] {
     // TODO: This is missing some cases
