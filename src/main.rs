@@ -22,6 +22,8 @@ struct Opt {
     anvill_path: Option<PathBuf>,
     #[structopt(short = "m", long = "mindsight", parse(from_os_str))]
     mindsight_path: Option<PathBuf>,
+    #[structopt(short = "o", long = "output_dir", parse(from_os_str))]
+    output_dir: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -38,7 +40,7 @@ fn main() -> Result<()> {
 
     let updated_sections = elf.sections()?;
 
-    ELF::dump_sections(&updated_sections)?;
+    ELF::dump_sections(&updated_sections, opt.output_dir)?;
 
     Ok(())
 }

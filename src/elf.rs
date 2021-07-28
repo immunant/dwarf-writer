@@ -67,11 +67,17 @@ impl ELF {
     }
 
     /// Dump the specified ELF sections to individual files.
-    pub fn dump_sections(sections: &Sections<EndianVec<RunTimeEndian>>) -> Result<()> {
+    pub fn dump_sections<P: AsRef<Path>>(
+        sections: &Sections<EndianVec<RunTimeEndian>>, output_dir: Option<P>,
+    ) -> Result<()> {
         sections.for_each(|id, data| {
             if !data.slice().is_empty() {
                 let file_name = &id.name()[1..];
-                let mut file = fs::File::create(file_name)?;
+                let file_path = match &output_dir {
+                    Some(dir) => dir.as_ref().join(file_name),
+                    None => file_name.into(),
+                };
+                let mut file = fs::File::create(file_path)?;
                 file.write_all(data.slice())?;
             }
             Ok(())
