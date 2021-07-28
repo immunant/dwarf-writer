@@ -79,10 +79,6 @@ impl AnvillInput {
 }
 
 impl Function {
-    pub fn parameters(&self) -> Option<&Vec<Arg>> {
-        self.parameters.as_ref()
-    }
-
     pub fn types(&self) -> Vec<&Type> {
         let mut res = vec![&self.return_address.r#type];
         if let Some(ret_sp) = &self.return_stack_pointer {
@@ -148,12 +144,12 @@ pub enum OS {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Function {
     address: u64,
-    return_address: Value<TaggedLocation>,
+    pub return_address: Value<TaggedLocation>,
     return_stack_pointer: Option<Value<UntaggedLocation>>,
-    parameters: Option<Vec<Arg>>,
-    return_values: Option<Vec<Value<TaggedLocation>>>,
+    pub parameters: Option<Vec<Arg>>,
+    pub return_values: Option<Vec<Value<TaggedLocation>>>,
     is_variadic: Option<bool>,
-    is_noreturn: Option<bool>,
+    pub is_noreturn: Option<bool>,
     calling_convention: Option<CallingConvention>,
 }
 
@@ -187,8 +183,8 @@ pub struct Arg {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Value<T: ValueLocation> {
     #[serde(flatten)]
-    location: T,
-    r#type: Type,
+    pub location: T,
+    pub r#type: Type,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

@@ -1,8 +1,9 @@
 use crate::anvill;
 use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
+use crate::types::TypeMap;
 use gimli::constants::*;
-use gimli::write::{Address, AttributeValue, StringTable, Unit, UnitEntryId};
+use gimli::write::{Address, AttributeValue, Reference, StringTable, Unit, UnitEntryId};
 
 /// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]
@@ -25,17 +26,17 @@ impl<'a> EntryRef<'a> {
         }
     }
     /// Initializes a newly created subprogram entry.
-    pub fn create_fn(&mut self, addr: u64, anvill_data: &mut AnvillFnMap) {
+    pub fn create_fn(&mut self, addr: u64, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
         let entry = self.unit.get_mut(self.self_id);
         entry.set(
             DW_AT_low_pc,
             AttributeValue::Address(Address::Constant(addr)),
         );
-        self.update_fn(anvill_data)
+        self.update_fn(anvill_data, type_map)
     }
 
     /// Updates an existing function's subprogram entry.
-    pub fn update_fn(&mut self, anvill_data: &mut AnvillFnMap) {
+    pub fn update_fn(&mut self, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
         let EntryRef {
             unit,
             self_id,
@@ -65,8 +66,38 @@ impl<'a> EntryRef<'a> {
                 entry.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
 
+            let entry = unit.get_mut(self_id);
+            entry.set(
+                DW_AT_return_addr,
+                dwarf_location(&fn_data.func.return_address.location),
+            );
+
+            // TODO: This is only supported for DWARF 5, but ghidra doesn't complain when
+            // it's used with DWARF 4. I should double check with other tools.
+            if let Some(no_ret) = fn_data.func.is_noreturn {
+                entry.set(DW_AT_noreturn, AttributeValue::Flag(no_ret));
+            }
+
+            // Mark the subprogram entry as prototyped
+            let entry = unit.get_mut(self_id);
+            entry.set(DW_AT_prototyped, AttributeValue::Flag(true));
+
+            if let Some(ret_vals) = &fn_data.func.return_values {
+                // TODO: Handle multiple ret values
+                //entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.siz
+                let type_name = ret_vals[0].r#type.name();
+                let type_id = type_map.get(&type_name).expect(&format!(
+                    "Type {:?} was not found in the type map",
+                    type_name
+                ));
+                // TODO: Make a sensible way to get the compilation unit ID
+                //let type_ref = Reference::Entry(unit.root(), *type_id);
+                //entry.set(DW_AT_type,
+                // AttributeValue::DebugInfoRef(type_ref));
+            }
+
             // Update function parameters
-            if let Some(new_params) = fn_data.func.parameters() {
+            if let Some(new_params) = &fn_data.func.parameters {
                 // Clear all existing parameters to avoid duplicates
                 let entry = unit.get(self_id);
                 let existing_params: Vec<_> = entry
@@ -90,17 +121,13 @@ impl<'a> EntryRef<'a> {
                     let param_id = unit.add(self_id, DW_TAG_formal_parameter);
                     let entry = unit.get_mut(param_id);
                     entry.set(DW_AT_location, dwarf_location(&param.location()));
-                    let param_entry = unit.get_mut(param_id);
                     if let Some(param_name) = param.name() {
-                        param_entry.set(
+                        entry.set(
                             DW_AT_name,
                             AttributeValue::String(param_name.as_bytes().to_vec()),
                         );
                     };
                 }
-                // Mark the subprogram entry as prototyped
-                let entry = unit.get_mut(self_id);
-                entry.set(DW_AT_prototyped, AttributeValue::Flag(true));
             }
         }
     }

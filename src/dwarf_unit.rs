@@ -114,7 +114,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
             if entry.tag() == DW_TAG_subprogram {
                 let mut entry_ref = EntryRef::new(unit, entry_id, &dwarf.strings);
                 // This pops the given function from the anvill data if it exists
-                entry_ref.update_fn(&mut anvill.fn_map);
+                entry_ref.update_fn(&mut anvill.fn_map, &type_map);
             }
         }
     }
@@ -124,7 +124,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     for addr in remaining_fn_addrs {
         let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
         let mut entry_ref = EntryRef::new(unit, fn_id, &dwarf.strings);
-        entry_ref.create_fn(addr, &mut anvill.fn_map);
+        entry_ref.create_fn(addr, &mut anvill.fn_map, &type_map);
     }
     assert!(anvill.fn_map.is_empty());
 }
