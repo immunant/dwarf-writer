@@ -3,7 +3,7 @@ use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
 use crate::types::TypeMap;
 use gimli::constants::*;
-use gimli::write::{Address, AttributeValue, Reference, StringTable, Unit, UnitEntryId};
+use gimli::write::{Address, AttributeValue, /*Reference,*/ StringTable, Unit, UnitEntryId};
 
 /// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]
@@ -86,7 +86,7 @@ impl<'a> EntryRef<'a> {
                 // TODO: Handle multiple ret values
                 //entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.siz
                 let type_name = ret_vals[0].r#type.name();
-                let type_id = type_map.get(&type_name).expect(&format!(
+                let _type_id = type_map.get(&type_name).expect(&format!(
                     "Type {:?} was not found in the type map",
                     type_name
                 ));
