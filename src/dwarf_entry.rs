@@ -3,7 +3,7 @@ use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
 use crate::types::TypeMap;
 use gimli::constants::*;
-use gimli::write::{Address, AttributeValue, /*Reference,*/ StringTable, Unit, UnitEntryId};
+use gimli::write::{Address, AttributeValue, /* Reference, */ StringTable, Unit, UnitEntryId};
 
 /// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]

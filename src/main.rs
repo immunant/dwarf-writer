@@ -24,6 +24,13 @@ struct Opt {
     mindsight_path: Option<PathBuf>,
     #[structopt(short = "o", long = "output_dir", parse(from_os_str))]
     output_dir: Option<PathBuf>,
+    #[structopt(
+        short = "x",
+        long = "objcopy_path",
+        help = "blah, blah, blah",
+        parse(from_os_str)
+    )]
+    objcopy_path: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -38,9 +45,7 @@ fn main() -> Result<()> {
         process_anvill(&mut elf, input.data(), &mut type_map);
     };
 
-    let updated_sections = elf.sections()?;
-
-    ELF::dump_sections(&updated_sections, opt.output_dir)?;
+    elf.update_binary(opt.objcopy_path, opt.output_dir)?;
 
     Ok(())
 }
