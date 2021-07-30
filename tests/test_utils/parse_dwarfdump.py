@@ -1,6 +1,6 @@
 import subprocess
 
-default_file = "no_return_fn.c.clang.elf"
+default_file = "no_return_fn.c.elf"
 tab = "	"
 
 def cmd(cmd, stdin=None):
