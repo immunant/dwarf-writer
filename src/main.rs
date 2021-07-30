@@ -16,18 +16,33 @@ mod types;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 struct Opt {
-    #[structopt(short = "b", long = "bin_in", parse(from_os_str))]
+    #[structopt(
+        short = "b",
+        long = "bin_in",
+        help = "Input binary",
+        parse(from_os_str)
+    )]
     binary_path: PathBuf,
-    #[structopt(short = "a", long = "anvill", parse(from_os_str))]
+    #[structopt(
+        short = "a",
+        long = "anvill",
+        help = "Optional input disassembly produced by anvill",
+        parse(from_os_str)
+    )]
     anvill_path: Option<PathBuf>,
-    #[structopt(short = "m", long = "mindsight", parse(from_os_str))]
-    mindsight_path: Option<PathBuf>,
-    #[structopt(short = "o", long = "output_dir", parse(from_os_str))]
+    //#[structopt(short = "m", long = "mindsight", parse(from_os_str))]
+    //mindsight_path: Option<PathBuf>,
+    #[structopt(
+        short = "o",
+        long = "output_dir",
+        help = "Optional output directory to store updated DWARF sections in",
+        parse(from_os_str)
+    )]
     output_dir: Option<PathBuf>,
     #[structopt(
         short = "x",
         long = "objcopy_path",
-        help = "blah, blah, blah",
+        help = "Specify alternate path to objcopy",
         parse(from_os_str)
     )]
     objcopy_path: Option<PathBuf>,
