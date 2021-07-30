@@ -13,9 +13,11 @@ def cmd(cmd, stdin=None):
 def symbol_address(symbol, file=default_file):
     file = "bin/" + file
     nm_out = cmd(["nm", file])
-    this_sym = [x for x in nm_out if symbol in x]
-    addr = this_sym[0].split()[0]
-    return addr
+    for line in nm_out:
+        line = line.split()
+        if line[-1] == symbol:
+            return line[0]
+    print("Symbol " + symbol + " not found in " + file)
 
 # Find the offset of the first DWARF entry containing a given pattern
 def entry_offset(pattern, file=default_file):

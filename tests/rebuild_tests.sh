@@ -5,10 +5,8 @@
 cflags=-nostdlib
 for test_case in src/*
 do
-    gcc $cflags $test_case -o bin/$(basename $test_case).gcc.elf
-    clang $cflags $test_case -o bin/$(basename $test_case).clang.elf
-    gcc $cflags -g $test_case -o bin/$(basename $test_case).gcc.debug.elf
-    clang $cflags -g $test_case -o bin/$(basename $test_case).clang.debug.elf
+    clang $cflags $test_case -o bin/$(basename $test_case).elf
+    clang $cflags -g $test_case -o bin/$(basename $test_case).debug.elf
 done
 
 for test_bin in bin/*
