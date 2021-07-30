@@ -30,10 +30,11 @@ fn create_unit_if_needed(elf: &mut ELF) {
         let line_program = LineProgram::none();
         let root = Unit::new(encoding, line_program);
         dwarf.units.add(root);
-    };
+    }
 }
 
-/// Creates a type map from existing DWARF debug info.
+/// Creates a type map from existing DWARF debug info. Returns an empty map if
+/// no debug info exists.
 pub fn create_type_map(elf: &ELF) -> TypeMap {
     let mut type_map = HashMap::new();
 
@@ -70,7 +71,6 @@ pub fn create_type_map(elf: &ELF) -> TypeMap {
 /// type entries.
 pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut TypeMap) {
     create_unit_if_needed(elf);
-
     let dwarf = &mut elf.dwarf;
     let unit_id = dwarf.units.id(0);
     let unit = dwarf.units.get_mut(unit_id);
@@ -90,7 +90,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
         if let Entry::Vacant(map_entry) = type_map.entry(ty.name()) {
             // Create an entry for the new type
             let new_ty = unit.add(unit.root(), DW_TAG_base_type);
-            let mut entry_ref = EntryRef::new(unit, new_ty, &dwarf.strings);
+            let mut entry_ref = EntryRef::new(unit, unit_id, new_ty);
             entry_ref.create_type(ty);
 
             // Update the type map
@@ -112,7 +112,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
             // Process an entry
             println!("Processing entry {:?}", entry.tag().static_string());
             if entry.tag() == DW_TAG_subprogram {
-                let mut entry_ref = EntryRef::new(unit, entry_id, &dwarf.strings);
+                let mut entry_ref = EntryRef::new(unit, unit_id, entry_id);
                 // This pops the given function from the anvill data if it exists
                 entry_ref.update_fn(&mut anvill.fn_map, &type_map);
             }
@@ -123,7 +123,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     let remaining_fn_addrs: Vec<_> = anvill.fn_map.keys().cloned().collect();
     for addr in remaining_fn_addrs {
         let fn_id = unit.add(unit.root(), DW_TAG_subprogram);
-        let mut entry_ref = EntryRef::new(unit, fn_id, &dwarf.strings);
+        let mut entry_ref = EntryRef::new(unit, unit_id, fn_id);
         entry_ref.create_fn(addr, &mut anvill.fn_map, &type_map);
     }
     assert!(anvill.fn_map.is_empty());

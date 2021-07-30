@@ -3,28 +3,28 @@ use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
 use crate::types::TypeMap;
 use gimli::constants::*;
-use gimli::write::{Address, AttributeValue, /* Reference, */ StringTable, Unit, UnitEntryId};
+use gimli::write::{Address, AttributeValue, Reference, Unit, UnitEntryId, UnitId};
 
 /// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]
 pub struct EntryRef<'a> {
     // The unit containing the entry.
     unit: &'a mut Unit,
+    // The unit's ID.
+    unit_id: UnitId,
     // The entry's ID.
     self_id: UnitEntryId,
-
-    // Miscellaneous DWARF info
-    strings: &'a StringTable,
 }
 
 impl<'a> EntryRef<'a> {
-    pub fn new(unit: &'a mut Unit, self_id: UnitEntryId, strings: &'a StringTable) -> Self {
+    pub fn new(unit: &'a mut Unit, unit_id: UnitId, self_id: UnitEntryId) -> Self {
         EntryRef {
             unit,
+            unit_id,
             self_id,
-            strings,
         }
     }
+
     /// Initializes a newly created subprogram entry.
     pub fn create_fn(&mut self, addr: u64, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
         let entry = self.unit.get_mut(self.self_id);
@@ -40,7 +40,7 @@ impl<'a> EntryRef<'a> {
         let EntryRef {
             unit,
             self_id,
-            strings: _,
+            unit_id,
         } = self;
         let self_id = *self_id;
         let entry = unit.get(self_id);
@@ -84,15 +84,14 @@ impl<'a> EntryRef<'a> {
 
             if let Some(ret_vals) = &fn_data.func.return_values {
                 // TODO: Handle multiple ret values
-                //entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.siz
+                entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.size()));
                 let type_name = ret_vals[0].r#type.name();
-                let _type_id = type_map.get(&type_name).unwrap_or_else(|| {
+                let type_id = type_map.get(&type_name).unwrap_or_else(|| {
                     panic!("Type {:?} was not found in the type map", type_name)
                 });
                 // TODO: Make a sensible way to get the compilation unit ID
-                //let type_ref = Reference::Entry(unit.root(), *type_id);
-                //entry.set(DW_AT_type,
-                // AttributeValue::DebugInfoRef(type_ref));
+                let type_ref = Reference::Entry(*unit_id, *type_id);
+                entry.set(DW_AT_type, AttributeValue::DebugInfoRef(type_ref));
             }
 
             // Update function parameters
