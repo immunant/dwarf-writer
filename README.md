@@ -40,6 +40,9 @@ OPTIONS:
 
 $ cargo run -- -b $BINARY -a $ANVILL_JSON
 
+# To run dwaf-writer on binaries for other architectures specify an alternate objcopy path
+$ cargo run -- -b $ARM_BINARY -a $ANVILL_JSON -x /usr/bin/arm-none-eabi-objcopy
+
 # To view the program's updated debug info
 $ llvm-dwarfdump $BINARY | less
 ```
