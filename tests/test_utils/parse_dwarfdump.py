@@ -22,7 +22,7 @@ def symbol_address(symbol, file=default_file):
 # Find the offset of the first DWARF entry containing a given pattern
 def entry_offset(pattern, file=default_file):
     file = "strip_bin/" + file
-    full_dump = cmd(["llvm-dwarfdump", file])
+    full_dump = cmd(["llvm-dwarfdump-12", file])
 
     idx = [i for i,x in enumerate(full_dump) if pattern in x][0]
     up_to_pattern = full_dump[0:idx]
@@ -37,7 +37,7 @@ def entry_offset(pattern, file=default_file):
 def entry_dump(offset, file=default_file):
     file = "strip_bin/" + file
     flag = "--debug-info=" + offset
-    return cmd(["llvm-dwarfdump", flag, file])
+    return cmd(["llvm-dwarfdump-12", flag, file])
 
 # Get the llvm-dwarfdump output for the given functions's entry
 def find_entry(function, file=default_file):

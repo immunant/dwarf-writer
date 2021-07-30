@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - github-actions*
+  pull_request:
+    branches:
+      - master
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Test
+        working-directory: tests
+        run: |
+          cc --version
+          which llvm-dwarfdump-11
+          ./run_writer.sh
+          python3 test_utils/test_runner.py
