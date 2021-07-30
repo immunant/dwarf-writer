@@ -114,8 +114,12 @@ impl ELF {
                     .output()?;
                 let stdout = std::str::from_utf8(&output.stdout)?;
                 let stderr = std::str::from_utf8(&output.stderr)?;
-                println!("{:?}", stdout);
-                println!("{:?}", stderr);
+                if !stdout.is_empty() {
+                    println!("{}", stdout);
+                }
+                if !stderr.is_empty() {
+                    println!("{}", stderr);
+                }
             }
             Ok(())
         })
