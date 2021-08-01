@@ -1,15 +1,32 @@
 import os
 import subprocess
+from typing import Optional, List
 
 default_file = "no_return_fn.c.elf"
 tab = "	"
 
 
-def cmd(cmd, stdin=None):
+def cmd(cmd, stdin=None) -> List[str]:
     return subprocess.run(cmd, input=stdin, stdout=subprocess.PIPE) \
         .stdout \
         .decode("utf-8") \
         .splitlines()
+
+
+def dwarfdump(*args) -> List[str]:
+    assert dwarfdump.cmd, "llvm-dwarfdump not found in path"
+    return cmd([dwarfdump.cmd] + list(args))
+
+
+def _find_dwarfdump() -> Optional[str]:
+    from shutil import which
+    suffixes = ["", "-12", "-11", "-10", "-9"]
+    candidates = (f"llvm-dwarfdump{s}" for s in suffixes)
+    return next((c for c in candidates if which(c) is not None),
+                None)
+
+
+dwarfdump.cmd = _find_dwarfdump()
 
 
 def symbol_address(symbol, file=default_file):
@@ -30,7 +47,7 @@ def entry_offset(pattern, file=default_file):
     Find the offset of the first DWARF entry containing a given pattern
     """
     file = os.path.join("strip_bin", file)
-    full_dump = cmd(["llvm-dwarfdump-12", file])
+    full_dump = dwarfdump(file)
 
     idx = [i for i, x in enumerate(full_dump) if pattern in x][0]
     up_to_pattern = full_dump[0:idx]
@@ -48,7 +65,7 @@ def entry_dump(offset, file=default_file):
     """
     file = os.path.join("strip_bin", file)
     flag = "--debug-info=" + offset
-    return cmd(["llvm-dwarfdump-12", flag, file])
+    return dwarfdump(flag, file)
 
 
 def find_entry(function, file=default_file):
