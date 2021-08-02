@@ -14,7 +14,8 @@ serde_repr = "0.1"
 
 # Handling ELF and DWARF formats
 object = "0.25.3"
-gimli = { version = "0.24.0", git = "https://github.com/immunant/gimli" }
+gimli = { git = "https://github.com/immunant/gimli" }
 
 anyhow = "1.0.41"
 structopt = "0.3.21"
+tempfile = "3.2.0"

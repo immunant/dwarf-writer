@@ -4,7 +4,7 @@ Dwarf-writer updates DWARF debug sections with information obtained through targ
 
 ## Building and prerequisites
 
-Building dwarf-writer requires a [rust installation](https://www.rust-lang.org/). Dwarf-writer also currently writes the updated sections to individual files instead of modifying the input binary. While this is subject to change, it means that currently [objcopy](https://www.gnu.org/software/binutils/) cross-compiled for the target architecture is required to write the updated sections back to the program binary.
+Building dwarf-writer requires a [rust installation](https://www.rust-lang.org/) and [objcopy](https://www.gnu.org/software/binutils/) cross-compiled for the target architecture. While the binary's DWARF debug sections are updated in-place, dumping the sections to individual files is also supported.
 
 ```
 $ git clone https://github.com/immunant/dwarf-writer
@@ -13,7 +13,7 @@ $ cd dwarf-writer
 
 $ cargo build --release
 
-$ ./target/release/dwarf-writer $DISASM_DATA $BINARY
+$ ./target/release/dwarf-writer -b $BINARY -a $ANVILL_JSON
 ```
 
 ## Supported target architectures
@@ -23,17 +23,37 @@ Target architecture support depends on the input disassembly data sources. Curre
 ## Example usage:
 
 ```
-$ cargo run $DISASM_DATA $BINARY
+$ cargo run -- -h
 
-$ ls debug_*
-debug_abbrev debug_info debug_line debug_str
+USAGE:
+    dwarf-writer [OPTIONS] --bin_in <binary-path>
 
-# TODO: Add note about `objcopy --add-section` for new sections
-$ for section in debug_*; do objcopy --update-section .$section=$section $BINARY; done
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -a, --anvill <anvill-path>           Optional input disassembly produced by anvill
+    -b, --bin_in <binary-path>           Input binary
+    -x, --objcopy_path <objcopy-path>    Specify alternate path to objcopy
+    -o, --output_dir <output-dir>        Optional output directory to store updated DWARF sections in
+
+$ cargo run -- -b $BINARY -a $ANVILL_JSON
+
+# To run dwaf-writer on binaries for other architectures specify an alternate objcopy path
+$ cargo run -- -b $ARM_BINARY -a $ANVILL_JSON -x /usr/bin/arm-none-eabi-objcopy
 
 # To view the program's updated debug info
-$ objdump -g $BINARY | less
+$ llvm-dwarfdump $BINARY | less
+```
 
-# To view a particular section
-$ objdump -s -j $SECTION $BINARY
+## Testing
+```
+$ cd tests/
+
+$ ./rebuild_tests.sh
+
+$ ./run_writer.sh
+
+$ python3 test_utils/test_runner.py
 ```

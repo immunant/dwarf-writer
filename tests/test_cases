@@ -1,0 +1,3 @@
+has_attr("just_loop", "name")
+has_attr("just_loop", "noreturn")
+'RSP' in attr_value("just_loop", "return_addr")
