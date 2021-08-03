@@ -76,15 +76,15 @@ impl ELF {
             Some(ref dir) => dir.as_path(),
             None => temp_dir.path(),
         };
-        let ref objcopy = objcopy_path.unwrap_or("objcopy".into());
+        let objcopy = &objcopy_path.unwrap_or_else(|| "objcopy".into());
 
-        let ref updated_sections = self.sections()?;
+        let updated_sections = &self.sections()?;
 
         updated_sections.for_each(|section, data| {
             if !data.slice().is_empty() {
                 // Remove leading '.' in section name to avoid creating dot files
                 let file_name = &section.name()[1..];
-                let ref section_path = dir.join(file_name);
+                let section_path = &dir.join(file_name);
                 // Write section data to a file
                 let mut file = fs::File::create(section_path)?;
                 file.write_all(data.slice())?;
@@ -93,8 +93,7 @@ impl ELF {
                 let section_exists = self
                     .object()
                     .sections()
-                    .find(|s| s.name() == Ok(section.name()))
-                    .is_some();
+                    .any(|s| s.name() == Ok(section.name()));
                 let objcopy_cmd = if section_exists {
                     "--update-section"
                 } else {
@@ -102,7 +101,7 @@ impl ELF {
                 };
 
                 let mut objcopy_arg = section.name().to_string();
-                objcopy_arg.push_str("=");
+                objcopy_arg.push('=');
                 objcopy_arg.push_str(section_path.as_path().to_str().unwrap());
 
                 // TODO: Add a flag to skip running objcopy

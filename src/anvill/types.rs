@@ -88,33 +88,29 @@ impl TypeVisitor {
         }
         if s == "?" {
             Ok(Type::Bool)
+        } else if s.len() == 1 {
+            let ty = self.parse_primitive(s)?;
+            Ok(Type::Primitive(ty))
+        } else if is_bracketed(s, "[", "]") {
+            let (inner_type, len) = self.parse_array(s)?;
+            Ok(Type::Array { inner_type, len })
+        } else if is_bracketed(s, "<", ">") {
+            let (inner_type, len) = self.parse_array(s)?;
+            Ok(Type::Vector { inner_type, len })
+        } else if is_bracketed(s, "{", "}") {
+            Ok(Type::Struct)
+        } else if is_bracketed(s, "(", ")") {
+            Ok(Type::Function)
+        } else if s.starts_with('*') {
+            let indirection_levels = s.chars().take_while(|&c| c == '*').count() as usize;
+            let referent_str = &s[indirection_levels..];
+            let referent_ty = Box::new(self.parse_type(referent_str)?);
+            Ok(Type::Pointer {
+                referent_ty,
+                indirection_levels,
+            })
         } else {
-            if s.len() == 1 {
-                let ty = self.parse_primitive(s)?;
-                Ok(Type::Primitive(ty))
-            } else {
-                if is_bracketed(s, "[", "]") {
-                    let (inner_type, len) = self.parse_array(s)?;
-                    Ok(Type::Array { inner_type, len })
-                } else if is_bracketed(s, "<", ">") {
-                    let (inner_type, len) = self.parse_array(s)?;
-                    Ok(Type::Vector { inner_type, len })
-                } else if is_bracketed(s, "{", "}") {
-                    Ok(Type::Struct)
-                } else if is_bracketed(s, "(", ")") {
-                    Ok(Type::Function)
-                } else if s.starts_with("*") {
-                    let indirection_levels = s.chars().take_while(|&c| c == '*').count() as usize;
-                    let referent_str = &s[indirection_levels..];
-                    let referent_ty = Box::new(self.parse_type(referent_str)?);
-                    Ok(Type::Pointer {
-                        referent_ty,
-                        indirection_levels,
-                    })
-                } else {
-                    Err(de::Error::invalid_value(Unexpected::Str(s), self))
-                }
-            }
+            Err(de::Error::invalid_value(Unexpected::Str(s), self))
         }
     }
 }

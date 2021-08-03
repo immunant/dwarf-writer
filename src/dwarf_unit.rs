@@ -8,6 +8,7 @@ use gimli::constants::*;
 use gimli::write::{LineProgram, Unit};
 use gimli::{Encoding, Format};
 use object::Object;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 /// Creates a DWARF unit if none exists in the `ELF`.
@@ -35,10 +36,9 @@ fn create_unit_if_needed(elf: &mut ELF) {
 /// Creates a type map from existing DWARF debug info.
 pub fn create_type_map(elf: &ELF) -> TypeMap {
     let mut type_map = HashMap::new();
-    if elf.dwarf.units.count() == 0 {
-        // Return an empty `TypeMap` if no debug info exists
-        type_map
-    } else {
+
+    // Return an empty `TypeMap` if no debug info exists
+    if elf.dwarf.units.count() != 0 {
         let unit_id = elf.dwarf.units.id(0);
         let unit = elf.dwarf.units.get(unit_id);
 
@@ -62,8 +62,8 @@ pub fn create_type_map(elf: &ELF) -> TypeMap {
                 _ => {},
             }
         }
-        type_map
-    }
+    };
+    type_map
 }
 
 /// Write the anvill data as DWARF debug info and updates the type map with new
@@ -87,14 +87,14 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
 
     // Add an entry for each anvill type that isn't already in the map
     for ty in &anvill.types {
-        if !type_map.contains_key(&ty.name()) {
+        if let Entry::Vacant(map_entry) = type_map.entry(ty.name()) {
             // Create an entry for the new type
             let new_ty = unit.add(unit.root(), DW_TAG_base_type);
             let mut entry_ref = EntryRef::new(unit, new_ty, &dwarf.strings);
             entry_ref.create_type(ty);
 
             // Update the type map
-            type_map.insert(ty.name(), new_ty);
+            map_entry.insert(new_ty);
         }
     }
 

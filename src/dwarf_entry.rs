@@ -86,10 +86,9 @@ impl<'a> EntryRef<'a> {
                 // TODO: Handle multiple ret values
                 //entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.siz
                 let type_name = ret_vals[0].r#type.name();
-                let _type_id = type_map.get(&type_name).expect(&format!(
-                    "Type {:?} was not found in the type map",
-                    type_name
-                ));
+                let _type_id = type_map.get(&type_name).unwrap_or_else(|| {
+                    panic!("Type {:?} was not found in the type map", type_name)
+                });
                 // TODO: Make a sensible way to get the compilation unit ID
                 //let type_ref = Reference::Entry(unit.root(), *type_id);
                 //entry.set(DW_AT_type,

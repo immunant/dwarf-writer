@@ -100,7 +100,7 @@ impl Function {
 
 impl Arg {
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|s| s.as_str())
+        self.name.as_deref()
     }
 
     pub fn location(&self) -> &TaggedLocation {
