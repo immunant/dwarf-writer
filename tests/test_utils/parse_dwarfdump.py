@@ -43,22 +43,32 @@ def symbol_address(symbol, file=DEFAULT_FILE) -> Optional[str]:
     return None
 
 
-def entry_offset(pattern, file=DEFAULT_FILE):
+def entry_addr(pattern, file=DEFAULT_FILE) -> Optional[str]:
     """
     Find the offset of the first DWARF entry containing a given pattern
     """
     file = os.path.join("strip_bin", file)
     full_dump = dwarfdump(file)
 
-    idx = [i for i, x in enumerate(full_dump) if pattern in x][0]
-    up_to_pattern = full_dump[0:idx]
+    idx = None
+    for i, x in enumerate(full_dump):
+        if pattern in x:
+            idx = i
+            break
 
-    all_offsets = [x for x in up_to_pattern if x.startswith('0x')]
-    # Get offset preceding first occurrence of pattern
-    # TODO: explain what this means
-    last_offset = all_offsets[-1]
-    offset = last_offset.split()[0][0:-1]
-    return offset
+    if idx is None:
+        return None
+    else:
+        # Get llvm-dwarfdump output up to the first occurrence of the pattern
+        up_to_pattern = full_dump[0:idx]
+
+        # Get all lines starting with a hex address
+        addr_lines = [x for x in up_to_pattern if x.startswith('0x')]
+        # Get the line preceding first occurrence of pattern
+        last_addr_line = addr_lines[-1]
+        # Get the address in the last line and strip the ':' suffix
+        addr = last_addr_line.split()[0][0:-1]
+        return addr
 
 
 def entry_dump(offset, file=DEFAULT_FILE):
@@ -75,7 +85,7 @@ def find_entry(function, file=DEFAULT_FILE):
     Get the llvm-dwarfdump output for the given functions's entry
     """
     addr = symbol_address(function)
-    offset = entry_offset(f"DW_AT_low_pc{TAB}(0x{addr})")
+    offset = entry_addr(f"DW_AT_low_pc{TAB}(0x{addr})")
     return entry_dump(offset, file)
 
 
@@ -105,5 +115,6 @@ def attr_value(function, attr, file=DEFAULT_FILE) -> Optional[str]:
     attr = "DW_AT_" + attr
     for a in attrs(function, file):
         if a.startswith(attr):
-            return ''.join(a.split()[1:])
+            attr_value = a.split()[1:]
+            return ' '.join(attr_value)
     return None
