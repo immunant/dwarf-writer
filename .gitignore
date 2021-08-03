@@ -1,4 +1,2 @@
 /target
-debug_*
-/anvill-tests/bin/*
-/anvill-tests/json/*
+/tests/test_utils/__pycache__
