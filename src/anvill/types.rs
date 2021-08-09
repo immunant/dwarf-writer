@@ -72,13 +72,7 @@ impl From<&Type> for DwarfType {
                 name: anvill_ty.name(),
                 size: Some(anvill_ty.size()),
             },
-            Type::Pointer {
-                referent_ty,
-                indirection_levels,
-            } => DwarfType::Pointer {
-                referent_ty: Box::new(referent_ty.as_ref().into()),
-                indirection_levels: *indirection_levels,
-            },
+            Type::Pointer(referent_ty) => DwarfType::Pointer(Box::new(referent_ty.as_ref().into())),
             Type::Array { inner_type, len } => DwarfType::Array {
                 inner_type: Box::new(inner_type.as_ref().into()),
                 len: *len,
@@ -129,13 +123,9 @@ impl TypeVisitor {
         } else if is_bracketed(s, "(", ")") {
             Ok(Type::Function)
         } else if s.starts_with('*') {
-            let indirection_levels = s.chars().take_while(|&c| c == '*').count() as usize;
-            let referent_str = &s[indirection_levels..];
+            let referent_str = &s[1..];
             let referent_ty = Box::new(self.parse_type(referent_str)?);
-            Ok(Type::Pointer {
-                referent_ty,
-                indirection_levels,
-            })
+            Ok(Type::Pointer(referent_ty))
         } else if s.starts_with('=') && is_bracketed(&s[2..], "{", "}") {
             debug!("Anvill's identified structs aren't supported yet. {:?} will be treated as normal struct", &s[2..]);
             Ok(Type::Struct)

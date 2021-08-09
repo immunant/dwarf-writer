@@ -235,18 +235,9 @@ pub enum PrimitiveType {
 pub enum Type {
     Bool, // _Bool or bool
     Primitive(PrimitiveType),
-    Pointer {
-        referent_ty: Box<Type>,
-        indirection_levels: usize,
-    },
-    Array {
-        inner_type: Box<Type>,
-        len: u64,
-    },
-    Vector {
-        inner_type: Box<Type>,
-        len: u64,
-    },
+    Pointer(Box<Type>),
+    Array { inner_type: Box<Type>, len: u64 },
+    Vector { inner_type: Box<Type>, len: u64 },
     Struct,
     Function,
 }

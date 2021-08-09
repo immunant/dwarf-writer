@@ -140,10 +140,7 @@ impl<'a> EntryRef<'a> {
                     entry.set(DW_AT_byte_size, AttributeValue::Data1(*size));
                 }
             },
-            DwarfType::Pointer {
-                referent_ty,
-                indirection_levels: _,
-            } => match type_map.get(referent_ty) {
+            DwarfType::Pointer(referent_ty) => match type_map.get(referent_ty) {
                 Some(ref_ty) => entry.set(
                     DW_AT_type,
                     AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),

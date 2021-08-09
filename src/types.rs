@@ -17,10 +17,7 @@ pub enum DwarfType {
         name: CanonicalTypeName,
         size: Option<u8>,
     },
-    Pointer {
-        referent_ty: Box<DwarfType>,
-        indirection_levels: usize,
-    },
+    Pointer(Box<DwarfType>),
     Array {
         inner_type: Box<DwarfType>,
         len: u64,
