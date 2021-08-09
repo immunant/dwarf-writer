@@ -457,7 +457,7 @@ mod tests {
     use std::fs;
     use std::io;
 
-    const TEST_DIR: &str = "anvill-tests/json";
+    const TEST_DIR: &str = "tests/anvill_json";
     fn get_tests() -> impl Iterator<Item = String> {
         let all_files = fs::read_dir(TEST_DIR).expect("Could not open test directory");
 
@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn pate_tests() {
+    fn parse_anvill_json() {
         for test_name in get_tests() {
             println!("Running test case: {}", test_name);
             let file = fs::File::open(format!("{}/{}", TEST_DIR, test_name))
