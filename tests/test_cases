@@ -1,6 +1,0 @@
-fn_has_attr("main", "name")
-fn_has_attr("main", "type")
-"int" in fn_attr_value("main", "type")
-fn_has_attr("just_loop", "name")
-fn_has_attr("just_loop", "noreturn")
-var_has_attr("xp", "name")
