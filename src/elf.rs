@@ -69,12 +69,21 @@ impl ELF {
     }
 
     pub fn update_binary(
-        mut self, objcopy_path: Option<PathBuf>, output_dir: Option<PathBuf>,
+        mut self, output_path: Option<PathBuf>, objcopy_path: Option<PathBuf>,
+        output_dir: Option<PathBuf>,
     ) -> Result<()> {
         let temp_dir = tempdir()?;
         let dir = match output_dir {
             Some(ref dir) => dir.as_path(),
             None => temp_dir.path(),
+        };
+        let output_path = match output_path {
+            Some(path) => {
+                let mut output_file = fs::File::create(&path)?;
+                output_file.write_all(&self.initial_buffer)?;
+                path
+            },
+            None => self.elf_path.clone(),
         };
         let objcopy = &objcopy_path.unwrap_or_else(|| "objcopy".into());
 
@@ -104,12 +113,10 @@ impl ELF {
                 objcopy_arg.push('=');
                 objcopy_arg.push_str(section_path.as_path().to_str().unwrap());
 
-                // TODO: Add a flag to skip running objcopy
-                // TODO: Try to get the correct objcopy path from the ELF header
                 let output = Command::new(objcopy)
                     .arg(objcopy_cmd)
                     .arg(objcopy_arg.as_str())
-                    .arg(self.elf_path.as_path())
+                    .arg(output_path.as_path())
                     .output()?;
                 let stdout = std::str::from_utf8(&output.stdout)?;
                 let stderr = std::str::from_utf8(&output.stderr)?;

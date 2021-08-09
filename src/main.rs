@@ -16,17 +16,14 @@ mod types;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 struct Opt {
-    #[structopt(
-        short = "b",
-        long = "bin_in",
-        help = "Input binary",
-        parse(from_os_str)
-    )]
-    binary_path: PathBuf,
+    #[structopt(name = "input", help = "Input binary", parse(from_os_str))]
+    input_binary_path: PathBuf,
+    #[structopt(name = "output", help = "Output binary", parse(from_os_str))]
+    output_binary_path: Option<PathBuf>,
     #[structopt(
         short = "a",
         long = "anvill",
-        help = "Optional input disassembly produced by anvill",
+        help = "Disassembly data produced by anvill",
         parse(from_os_str)
     )]
     anvill_path: Option<PathBuf>,
@@ -35,7 +32,7 @@ struct Opt {
     #[structopt(
         short = "o",
         long = "output_dir",
-        help = "Optional output directory to store updated DWARF sections in",
+        help = "Output directory to store updated DWARF sections in",
         parse(from_os_str)
     )]
     output_dir: Option<PathBuf>,
@@ -51,7 +48,7 @@ struct Opt {
 fn main() -> Result<()> {
     let opt = Opt::from_args();
 
-    let mut elf = ELF::new(&opt.binary_path)?;
+    let mut elf = ELF::new(&opt.input_binary_path)?;
 
     let mut type_map = create_type_map(&elf);
 
@@ -60,7 +57,7 @@ fn main() -> Result<()> {
         process_anvill(&mut elf, input.data(), &mut type_map);
     };
 
-    elf.update_binary(opt.objcopy_path, opt.output_dir)?;
+    elf.update_binary(opt.output_binary_path, opt.objcopy_path, opt.output_dir)?;
 
     Ok(())
 }
