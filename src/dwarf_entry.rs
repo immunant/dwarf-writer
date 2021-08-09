@@ -144,14 +144,15 @@ impl<'a> EntryRef<'a> {
             } => match type_map.get(referent_ty) {
                 Some(ref_ty) => {
                     entry.set(
-                    DW_AT_type,
-                    AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),
-                );
+                        DW_AT_type,
+                        AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),
+                    );
                 },
                 None => {
                     todo!("Handle pointers which refer to types not found in the type map")
                 },
             },
+            DwarfType::Array { .. } => todo!("Handle arrays"),
         }
     }
 }

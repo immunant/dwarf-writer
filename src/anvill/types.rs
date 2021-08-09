@@ -78,6 +78,13 @@ impl From<&Type> for DwarfType {
                 referent_ty: Box::new(referent_ty.as_ref().into()),
                 indirection_levels: *indirection_levels,
             },
+            Type::Array {
+                inner_type,
+                len,
+            } => DwarfType::Array {
+                inner_type: Box::new(inner_type.as_ref().into()),
+                len: *len,
+            },
             _ => todo!("Map missing anvill type {:?} to DwarfType", anvill_ty),
         }
     }

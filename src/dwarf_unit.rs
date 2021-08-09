@@ -87,12 +87,8 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     // Add an entry for each anvill type that isn't already in the map
     for ty in anvill.types {
         if !type_map.contains_key(&ty) {
-            let tag = match ty {
-                DwarfType::Primitive { .. } => DW_TAG_base_type,
-                DwarfType::Pointer { .. } => DW_TAG_pointer_type,
-            };
             // Create an entry for the new type
-            let new_ty = unit.add(unit.root(), tag);
+            let new_ty = unit.add(unit.root(), ty.tag());
             let mut entry_ref = EntryRef::new(unit, unit_id, new_ty);
             entry_ref.create_type(&ty, type_map);
 

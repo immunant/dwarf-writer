@@ -1,3 +1,4 @@
+use gimli::constants::*;
 use gimli::write::UnitEntryId;
 use std::collections::HashMap;
 
@@ -20,12 +21,23 @@ pub enum DwarfType {
         referent_ty: Box<DwarfType>,
         indirection_levels: usize,
     },
+    Array {
+        inner_type: Box<DwarfType>,
+        len: u64,
+    }
 }
 
 impl DwarfType {
     /// Creates a new primitive type from a canonical type name.
     pub fn new(name: CanonicalTypeName) -> Self {
         DwarfType::Primitive { name, size: None }
+    }
+    pub fn tag(&self) -> DwTag {
+            match self {
+                DwarfType::Primitive { .. } => DW_TAG_base_type,
+                DwarfType::Pointer { .. } => DW_TAG_pointer_type,
+                DwarfType::Array { .. } => DW_TAG_array_type,
+            }
     }
 }
 
