@@ -14,7 +14,7 @@ do
     debug=bin/debug.$name.elf
     clang $cflags $test_case -o $binary
     # Only used for manually debugging tests
-    clang $cflags -g $test_case -o $debug
+    #clang $cflags -g $test_case -o $debug
     strip $binary -o $stripped
     python3 -m anvill --bin_in $stripped --spec_out $spec
 done

@@ -1,13 +1,11 @@
-#include <stdint.h>
+volatile int x = 0;
 
-uint64_t f() {
-    uint64_t x = 0xdeadbeef;
-    return x;
+void just_loop() {
+    while (1) {
+        x = 0;
+    }
 }
 
 int main() {
-    return f();
-}
-uint64_t just_loop(uint32_t x) {
-    while (1) {}
+    just_loop();
 }
