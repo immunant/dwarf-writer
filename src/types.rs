@@ -24,7 +24,9 @@ pub enum DwarfType {
     Array {
         inner_type: Box<DwarfType>,
         len: u64,
-    }
+    },
+    Struct,
+    Function,
 }
 
 impl DwarfType {
@@ -37,6 +39,9 @@ impl DwarfType {
                 DwarfType::Primitive { .. } => DW_TAG_base_type,
                 DwarfType::Pointer { .. } => DW_TAG_pointer_type,
                 DwarfType::Array { .. } => DW_TAG_array_type,
+                DwarfType::Struct => DW_TAG_structure_type,
+                // TODO: Double check that subroutine_type is correct
+                DwarfType::Function => DW_TAG_subroutine_type,
             }
     }
 }

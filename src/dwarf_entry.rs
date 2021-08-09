@@ -83,7 +83,8 @@ impl<'a> EntryRef<'a> {
 
             if let Some(ret_vals) = &fn_data.func.return_values {
                 // TODO: Handle multiple ret values
-                entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.size()));
+                // TODO: What is going in the following line??
+                //entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.size()));
                 let ret_type = (&ret_vals[0].r#type).into();
                 let type_id = type_map
                     .get(&ret_type)
@@ -152,7 +153,15 @@ impl<'a> EntryRef<'a> {
                     todo!("Handle pointers which refer to types not found in the type map")
                 },
             },
-            DwarfType::Array { .. } => todo!("Handle arrays"),
+            DwarfType::Array { .. } => {
+                todo!("Handle arrays")
+            },
+            DwarfType::Struct => {
+                todo!("Handle structs")
+            },
+            DwarfType::Function => {
+                todo!("Handle functions")
+            },
         }
     }
 }

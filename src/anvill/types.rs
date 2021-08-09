@@ -58,7 +58,7 @@ impl Type {
             //M, // uint64_t (x86 MMX vector type)
             Type::Primitive(PrimitiveType::Q) => 16,
             Type::Primitive(PrimitiveType::v) => 0,
-            _ => todo!("missing type"),
+            _ => todo!("missing type {:?}", self),
         }
     }
 }
@@ -85,6 +85,8 @@ impl From<&Type> for DwarfType {
                 inner_type: Box::new(inner_type.as_ref().into()),
                 len: *len,
             },
+            Type::Struct => DwarfType::Struct,
+            Type::Function => DwarfType::Function,
             _ => todo!("Map missing anvill type {:?} to DwarfType", anvill_ty),
         }
     }

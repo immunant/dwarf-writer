@@ -23,7 +23,8 @@ impl IntoGimli<gimli::Register> for &anvill::Register {
             Register::X86(r) => {
                 let reg_string = serde_json::to_string(self)
                     .unwrap_or_else(|_| panic!("Couldn't serialize X86 register {:?}", r));
-                let gimli_reg_name = match reg_string.as_ref() {
+                println!("{:?}", reg_string);
+                let gimli_reg_name = match reg_string.trim_matches('"') {
                     "RSP" => "RA".to_string(),
                     s => s.to_ascii_lowercase(),
                 };
