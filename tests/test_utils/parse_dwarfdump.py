@@ -2,7 +2,6 @@ import os
 import subprocess
 from typing import Optional, List
 
-DEFAULT_FILE = "no_return_fn.c.elf"
 TAB = "	"
 
 
@@ -30,7 +29,7 @@ def _find_dwarfdump() -> Optional[str]:
 dwarfdump.cmd = _find_dwarfdump()
 
 
-def symbol_address(symbol, full_path=DEFAULT_FILE) -> Optional[str]:
+def symbol_address(symbol, full_path) -> Optional[str]:
     """
     Get the address of a symbol
     """
@@ -43,7 +42,7 @@ def symbol_address(symbol, full_path=DEFAULT_FILE) -> Optional[str]:
     return None
 
 
-def entry_dump(symbol, sym_type, file=DEFAULT_FILE):
+def entry_dump(symbol, sym_type, file):
     """
     Get the llvm-dwarfdump output for the given functions or variable's entry
     """
@@ -70,7 +69,7 @@ def entry_dump(symbol, sym_type, file=DEFAULT_FILE):
     return full_dump[start + 1:end]
 
 
-def _attrs(symbol, sym_type, file=DEFAULT_FILE):
+def _attrs(symbol, sym_type, file):
     """
     Get all attributes for a function or variable
     """
@@ -78,7 +77,7 @@ def _attrs(symbol, sym_type, file=DEFAULT_FILE):
     return [x.lstrip() for x in entry if "DW_AT_" in x]
 
 
-def _has_attr(symbol, sym_type, attr, file=DEFAULT_FILE):
+def _has_attr(symbol, sym_type, attr, file):
     """
     Check if a function or variable has a specified attribute
     """
@@ -89,7 +88,7 @@ def _has_attr(symbol, sym_type, attr, file=DEFAULT_FILE):
     return False
 
 
-def _attr_value(symbol, sym_type, attr, file=DEFAULT_FILE) -> Optional[str]:
+def _attr_value(symbol, sym_type, attr, file) -> Optional[str]:
     """
     Get the value of a function or variable's attribute
     """
@@ -100,20 +99,20 @@ def _attr_value(symbol, sym_type, attr, file=DEFAULT_FILE) -> Optional[str]:
             return ' '.join(attr_value)
     return None
 
-def fn_attrs(symbol, file=DEFAULT_FILE):
+def fn_attrs(symbol, file):
     return _attrs(symbol, "function", file)
 
-def fn_has_attr(symbol, attr, file=DEFAULT_FILE):
+def fn_has_attr(symbol, attr, file):
     return _has_attr(symbol, "function", attr, file)
 
-def fn_attr_value(symbol, attr, file=DEFAULT_FILE):
+def fn_attr_value(symbol, attr, file):
     return _attr_value(symbol, "function", attr, file)
 
-def var_attrs(symbol, file=DEFAULT_FILE):
+def var_attrs(symbol, file):
     return _attrs(symbol, "variable", file)
 
-def var_has_attr(symbol, attr, file=DEFAULT_FILE):
+def var_has_attr(symbol, attr, file):
     return _has_attr(symbol, "variable", attr, file)
 
-def var_attr_value(symbol, attr, file=DEFAULT_FILE):
+def var_attr_value(symbol, attr, file):
     return _attr_value(symbol, "variable", attr, file)

@@ -9,12 +9,13 @@ def test_main_return_type():
     assert "int" in fn_attr_value("main", "type", file)
 
 def test_just_loop_name():
-    assert fn_has_attr("just_loop", "name")
-    assert fn_has_attr("just_loop", "noreturn")
+    file = "no_return_fn.c.elf"
+    assert fn_has_attr("just_loop", "name", file)
+    assert fn_has_attr("just_loop", "noreturn", file)
 
 def test_variables():
     file = "types.c.elf"
-    assert var_has_attr("xp", "name")
-    u32_ptr = var_attr_value("xp", "type")
+    assert var_has_attr("xp", "name", file)
+    u32_ptr = var_attr_value("xp", "type", file)
     assert "*" in u32_ptr
     assert "int32_t" in u32_ptr
