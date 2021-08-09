@@ -14,6 +14,7 @@ use tempfile::tempdir;
 
 /// An ELF and its DWARF debug data.
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct ELF {
     /// The initial data read from the ELF file. This buffer is not kept in sync
     /// with the DWARF data written through the `dwarf` field so it should only

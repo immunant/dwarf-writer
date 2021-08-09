@@ -67,7 +67,7 @@ fn main() -> Result<()> {
 
     let mut elf = ELF::new(&opt.input_binary_path)?;
 
-    let mut type_map = create_type_map(&elf);
+    let mut type_map = create_type_map(&elf.dwarf);
 
     if let Some(path) = opt.anvill_path {
         let input = AnvillInput::new(path)?;

@@ -2,16 +2,19 @@ use crate::anvill;
 use crate::into_gimli::IntoGimli;
 use gimli::write::{Address, AttributeValue, Expression, StringTable};
 
-/// Converts an anvill location to an `AttributeValue`.
-pub fn dwarf_location(location: &anvill::TaggedLocation) -> AttributeValue {
-    use anvill::TaggedLocation;
+impl From<&anvill::TaggedLocation> for AttributeValue {
+    fn from(location: &anvill::TaggedLocation) -> AttributeValue {
+        use anvill::TaggedLocation;
 
-    let mut expr = Expression::new();
-    match location {
-        TaggedLocation::register(reg) => expr.op_reg(reg.into_gimli()),
-        TaggedLocation::memory { register, offset } => expr.op_breg(register.into_gimli(), *offset),
+        let mut expr = Expression::new();
+        match location {
+            TaggedLocation::register(reg) => expr.op_reg(reg.into_gimli()),
+            TaggedLocation::memory { register, offset } => {
+                expr.op_breg(register.into_gimli(), *offset)
+            },
+        }
+        AttributeValue::Exprloc(expr)
     }
-    AttributeValue::Exprloc(expr)
 }
 
 pub fn name_as_bytes<'a>(attr: &'a AttributeValue, strings: &'a StringTable) -> &'a [u8] {

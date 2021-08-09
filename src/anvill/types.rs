@@ -79,7 +79,10 @@ impl From<&Type> for DwarfType {
             },
             Type::Struct => DwarfType::Struct,
             Type::Function => DwarfType::Function,
-            _ => todo!("Map missing anvill type {:?} to DwarfType", anvill_ty),
+            _ => todo!(
+                "Map missing type {:?} from an `anvill::Type` type to a `DwarfType`",
+                anvill_ty
+            ),
         }
     }
 }
@@ -122,8 +125,7 @@ impl TypeVisitor {
             Ok(Type::Struct)
         } else if is_bracketed(s, "(", ")") {
             Ok(Type::Function)
-        } else if s.starts_with('*') {
-            let referent_str = &s[1..];
+        } else if let Some(referent_str) = s.strip_prefix('*') {
             let referent_ty = Box::new(self.parse_type(referent_str)?);
             Ok(Type::Pointer(referent_ty))
         } else if s.starts_with('=') && is_bracketed(&s[2..], "{", "}") {
