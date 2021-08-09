@@ -50,4 +50,4 @@ jobs:
           python3 --version
           rustc --version
           ./run_writer.sh
-          python3 test_utils/test_runner.py
+          pytest
