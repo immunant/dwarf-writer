@@ -78,7 +78,7 @@ impl From<&Type> for DwarfType {
                 referent_ty: Box::new(referent_ty.as_ref().into()),
                 indirection_levels: *indirection_levels,
             },
-            _ => todo!("Map remaining anvill types to DWARF types"),
+            _ => todo!("Map missing anvill type {:?} to DwarfType", anvill_ty),
         }
     }
 }
@@ -129,6 +129,10 @@ impl TypeVisitor {
                 referent_ty,
                 indirection_levels,
             })
+        } else if s.starts_with('=') && is_bracketed(&s[2..], "{", "}") {
+            // TODO: Use actual logging
+            println!("WARNING: Identified anvill structs aren't supported yet");
+            Ok(Type::Struct)
         } else {
             Err(de::Error::invalid_value(Unexpected::Str(s), self))
         }
