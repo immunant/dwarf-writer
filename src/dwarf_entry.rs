@@ -129,7 +129,7 @@ impl<'a> EntryRef<'a> {
         }
     }
 
-    pub fn create_type<'ty>(&mut self, ty: &'ty DwarfType, type_map: &TypeMap) -> Option<&'ty DwarfType> {
+    pub fn create_type<'ty>(&mut self, ty: &'ty DwarfType, type_map: &TypeMap) {
         let entry = self.unit.get_mut(self.self_id);
         match ty {
             DwarfType::Primitive { name, size } => {
@@ -137,7 +137,6 @@ impl<'a> EntryRef<'a> {
                 if let Some(size) = size {
                     entry.set(DW_AT_byte_size, AttributeValue::Data1(*size));
                 }
-                None
             },
             DwarfType::Pointer {
                 referent_ty,
@@ -148,10 +147,9 @@ impl<'a> EntryRef<'a> {
                     DW_AT_type,
                     AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),
                 );
-                    None
                 },
                 None => {
-                    Some(referent_ty)
+                    todo!("Handle pointers which refer to types not found in the type map")
                 },
             },
         }
