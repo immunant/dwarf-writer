@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# out_bin should only contain untracked binaries with the updated debug info so
+# let's create it before running dwarf-writer
+mkdir -p out_bin
+
 for test_case in src/*
 do
     name=$(basename $test_case)
