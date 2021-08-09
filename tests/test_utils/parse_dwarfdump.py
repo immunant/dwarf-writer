@@ -6,10 +6,11 @@ TAB = "	"
 
 
 def run_cmd(cmd, stdin=None) -> List[str]:
-    return subprocess.run(cmd, input=stdin, stdout=subprocess.PIPE, check=False) \
-        .stdout \
-        .decode("utf-8") \
+    return (
+        subprocess.run(cmd, input=stdin, stdout=subprocess.PIPE, check=False)
+        .stdout.decode("utf-8")
         .splitlines()
+    )
 
 
 def dwarfdump(*args) -> List[str]:
@@ -20,10 +21,10 @@ def dwarfdump(*args) -> List[str]:
 
 def _find_dwarfdump() -> Optional[str]:
     from shutil import which
+
     suffixes = ["", "-12", "-11", "-10", "-9"]
     candidates = (f"llvm-dwarfdump{s}" for s in suffixes)
-    return next((c for c in candidates if which(c) is not None),
-                None)
+    return next((c for c in candidates if which(c) is not None), None)
 
 
 dwarfdump.cmd = _find_dwarfdump()
@@ -65,8 +66,8 @@ def entry_dump(symbol, sym_type, file):
         if idx < n:
             end = n
             break
-    start = blank_lines[blank_lines.index(end)-1]
-    return full_dump[start + 1:end]
+    start = blank_lines[blank_lines.index(end) - 1]
+    return full_dump[start + 1 : end]
 
 
 def _attrs(symbol, sym_type, file):
@@ -96,23 +97,29 @@ def _attr_value(symbol, sym_type, attr, file) -> Optional[str]:
     for a in _attrs(symbol, sym_type, file):
         if a.startswith(attr):
             attr_value = a.split()[1:]
-            return ' '.join(attr_value)
+            return " ".join(attr_value)
     return None
+
 
 def fn_attrs(symbol, file):
     return _attrs(symbol, "function", file)
 
+
 def fn_has_attr(symbol, attr, file):
     return _has_attr(symbol, "function", attr, file)
+
 
 def fn_attr_value(symbol, attr, file):
     return _attr_value(symbol, "function", attr, file)
 
+
 def var_attrs(symbol, file):
     return _attrs(symbol, "variable", file)
 
+
 def var_has_attr(symbol, attr, file):
     return _has_attr(symbol, "variable", attr, file)
+
 
 def var_attr_value(symbol, attr, file):
     return _attr_value(symbol, "variable", attr, file)
