@@ -1,4 +1,5 @@
 #![allow(non_camel_case_types)]
+use crate::types::DwarfType;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -21,7 +22,7 @@ impl AnvillInput {
     pub fn data(&self) -> AnvillData {
         AnvillData {
             fn_map: self.functions(),
-            types: self.types(),
+            types: self.types().iter().map(|&t| t.into()).collect(),
         }
     }
 }
@@ -30,7 +31,7 @@ pub type AnvillFnMap<'a> = HashMap<u64, FunctionRef<'a>>;
 
 pub struct AnvillData<'a> {
     pub fn_map: AnvillFnMap<'a>,
-    pub types: Vec<&'a Type>,
+    pub types: Vec<DwarfType>,
 }
 
 #[derive(Debug)]
@@ -228,6 +229,8 @@ pub enum PrimitiveType {
     v, // void
 }
 
+// This is separate from crate::types::Type to simplify deserializing the anvill
+// JSON input.
 #[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Type {
     Bool, // _Bool or bool

@@ -2,13 +2,12 @@ use crate::anvill::AnvillData;
 use crate::dwarf_attr::name_as_bytes;
 use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
-use crate::types::TypeMap;
+use crate::types::{DwarfType, TypeMap};
 use gimli::constants;
 use gimli::constants::*;
 use gimli::write::{LineProgram, Unit};
 use gimli::{Encoding, Format};
 use object::Object;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 /// Creates a DWARF unit if none exists in the `ELF`.
@@ -54,7 +53,7 @@ pub fn create_type_map(elf: &ELF) -> TypeMap {
                         let name = name_as_bytes(name_attr, &elf.dwarf.strings).to_vec();
 
                         // Insert the type entry Id indexed by the canonical type name into the map
-                        type_map.insert(name.into(), child);
+                        type_map.insert(DwarfType::new(name.into()), child);
                     };
                 },
                 constants::DW_TAG_pointer_type => {
@@ -86,15 +85,19 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     let mut children: Vec<_> = root_entry.children().cloned().collect();
 
     // Add an entry for each anvill type that isn't already in the map
-    for ty in &anvill.types {
-        if let Entry::Vacant(map_entry) = type_map.entry(ty.name()) {
+    for ty in anvill.types {
+        if !type_map.contains_key(&ty) {
+            let tag = match ty {
+                DwarfType::Primitive { .. } => DW_TAG_base_type,
+                DwarfType::Pointer { .. } => DW_TAG_pointer_type,
+            };
             // Create an entry for the new type
-            let new_ty = unit.add(unit.root(), DW_TAG_base_type);
+            let new_ty = unit.add(unit.root(), tag);
             let mut entry_ref = EntryRef::new(unit, unit_id, new_ty);
-            entry_ref.create_type(ty);
+            entry_ref.create_type(&ty, type_map);
 
             // Update the type map
-            map_entry.insert(new_ty);
+            type_map.insert(ty, new_ty);
         }
     }
 

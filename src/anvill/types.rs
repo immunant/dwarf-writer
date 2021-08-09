@@ -1,5 +1,5 @@
 use super::{PrimitiveType, Type};
-use crate::types::CanonicalTypeName;
+use crate::types::{CanonicalTypeName, DwarfType};
 use anyhow::Result;
 use serde::de;
 use serde::de::{Deserializer, Unexpected, Visitor};
@@ -31,7 +31,7 @@ impl Type {
             //M, // uint64_t (x86 MMX vector type)
             Type::Primitive(PrimitiveType::Q) => b"__float128",
             Type::Primitive(PrimitiveType::v) => b"void",
-            _ => todo!("missing type {:?}", self),
+            _ => panic!("Unexpected type {:?}", self),
         };
         name.to_vec().into()
     }
@@ -59,6 +59,26 @@ impl Type {
             Type::Primitive(PrimitiveType::Q) => 16,
             Type::Primitive(PrimitiveType::v) => 0,
             _ => todo!("missing type"),
+        }
+    }
+}
+
+// This maps the way anvill represents types into the way DWARF encodes types.
+impl From<&Type> for DwarfType {
+    fn from(anvill_ty: &Type) -> DwarfType {
+        match anvill_ty {
+            Type::Bool | Type::Primitive(_) => DwarfType::Primitive {
+                name: anvill_ty.name(),
+                size: Some(anvill_ty.size()),
+            },
+            Type::Pointer {
+                referent_ty,
+                indirection_levels,
+            } => DwarfType::Pointer {
+                referent_ty: Box::new(referent_ty.as_ref().into()),
+                indirection_levels: *indirection_levels,
+            },
+            _ => todo!("Map remaining anvill types to DWARF types"),
         }
     }
 }

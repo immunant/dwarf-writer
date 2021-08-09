@@ -1,7 +1,6 @@
-use crate::anvill;
 use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
-use crate::types::TypeMap;
+use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, Reference, Unit, UnitEntryId, UnitId};
 
@@ -85,10 +84,10 @@ impl<'a> EntryRef<'a> {
             if let Some(ret_vals) = &fn_data.func.return_values {
                 // TODO: Handle multiple ret values
                 entry.set(DW_AT_type, AttributeValue::Data1(ret_vals[0].r#type.size()));
-                let type_name = ret_vals[0].r#type.name();
-                let type_id = type_map.get(&type_name).unwrap_or_else(|| {
-                    panic!("Type {:?} was not found in the type map", type_name)
-                });
+                let ret_type = (&ret_vals[0].r#type).into();
+                let type_id = type_map
+                    .get(&ret_type)
+                    .unwrap_or_else(|| panic!("Type {:?} was not found in the type map", ret_type));
                 // TODO: Make a sensible way to get the compilation unit ID
                 let type_ref = Reference::Entry(*unit_id, *type_id);
                 entry.set(DW_AT_type, AttributeValue::DebugInfoRef(type_ref));
@@ -130,10 +129,31 @@ impl<'a> EntryRef<'a> {
         }
     }
 
-    pub fn create_type(&mut self, ty: &anvill::Type) {
+    pub fn create_type<'ty>(&mut self, ty: &'ty DwarfType, type_map: &TypeMap) -> Option<&'ty DwarfType> {
         let entry = self.unit.get_mut(self.self_id);
-        entry.set(DW_AT_name, AttributeValue::String(Vec::from(ty.name())));
-        entry.set(DW_AT_byte_size, AttributeValue::Data1(ty.size()));
-        // TODO: Set DW_AT_encoding
+        match ty {
+            DwarfType::Primitive { name, size } => {
+                entry.set(DW_AT_name, AttributeValue::String(Vec::from(name.clone())));
+                if let Some(size) = size {
+                    entry.set(DW_AT_byte_size, AttributeValue::Data1(*size));
+                }
+                None
+            },
+            DwarfType::Pointer {
+                referent_ty,
+                indirection_levels: _,
+            } => match type_map.get(referent_ty) {
+                Some(ref_ty) => {
+                    entry.set(
+                    DW_AT_type,
+                    AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),
+                );
+                    None
+                },
+                None => {
+                    Some(referent_ty)
+                },
+            },
+        }
     }
 }

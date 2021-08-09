@@ -1,14 +1,35 @@
 use gimli::write::UnitEntryId;
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct CanonicalTypeName(TypeName);
-
 // Types may have various representations so `TypeName`s should be converted to
-// `CanonicalTypeName`s before being compared.
+// `CanonicalTypeName`s before being compared for equality.
 pub type TypeName = Vec<u8>;
 
-pub type TypeMap = HashMap<CanonicalTypeName, UnitEntryId>;
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CanonicalTypeName(TypeName);
+
+// This enum directly maps onto the way type information is encoded as DWARF
+// info.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum DwarfType {
+    Primitive {
+        name: CanonicalTypeName,
+        size: Option<u8>,
+    },
+    Pointer {
+        referent_ty: Box<DwarfType>,
+        indirection_levels: usize,
+    },
+}
+
+impl DwarfType {
+    /// Creates a new primitive type from a canonical type name.
+    pub fn new(name: CanonicalTypeName) -> Self {
+        DwarfType::Primitive { name, size: None }
+    }
+}
+
+pub type TypeMap = HashMap<DwarfType, UnitEntryId>;
 
 impl From<TypeName> for CanonicalTypeName {
     fn from(name: TypeName) -> CanonicalTypeName {
