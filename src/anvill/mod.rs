@@ -266,26 +266,36 @@ pub enum Register {
     SPARC(SPARCRegister),
 }
 
+// TODO: Add support for x86 registers (i.e. eax, ecx, etc.). Does anvill
+// display them as eax or rax?
+/// X86 registers
+///
+/// These variant names directly correspond to the way that anvill represents
+/// them in the disassembly JSON output.
 #[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum X86Register {
-    RAX = 0,
-    RDX = 1,
-    RCX = 2,
-    RBX = 3,
-    RSI = 4,
-    RDI = 5,
-    RBP = 6,
-    RSP = 7,
-    R8 = 8,
-    R9 = 9,
-    R10 = 10,
-    R11 = 11,
-    R12 = 12,
-    R13 = 13,
-    R14 = 14,
-    R15 = 15,
+    RAX,
+    RDX,
+    RCX,
+    RBX,
+    RSI,
+    RDI,
+    RBP,
+    RSP,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+    ST0,
 }
 
+/// ARM registers
+///
+/// These variant names directly correspond to the way that anvill represents them in the disassembly JSON output. The variant values correspond to the [DWARF register numbers](http://infocenter.arm.com/help/topic/com.arm.doc.ihi0040b/IHI0040B_aadwarf.pdf). This differs from `X86Register` because `gimli` currently only maps registers R0-R15 using `name_to_register`.
 #[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum ARMRegister {
     R0 = 0,
@@ -306,6 +316,9 @@ pub enum ARMRegister {
     PC = 15,
 }
 
+// TODO: Fill this in, handling the mapping to `gimli::Register` the same way
+// ARMRegister handles it.
+/// SPARC registers
 #[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub enum SPARCRegister {}
 
