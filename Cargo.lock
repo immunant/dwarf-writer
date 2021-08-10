@@ -120,7 +120,7 @@ dependencies = [
 [[package]]
 name = "gimli"
 version = "0.25.0"
-source = "git+https://github.com/immunant/gimli#86519021ee0c25e418df9eacde15eeaefcbdb4d6"
+source = "git+https://github.com/gimli-rs/gimli?rev=9382354805a9eb798ab6174dce23e0315a128d60#9382354805a9eb798ab6174dce23e0315a128d60"
 dependencies = [
  "fallible-iterator",
  "indexmap",

@@ -35,14 +35,14 @@ impl DwarfType {
         DwarfType::Primitive { name, size: None }
     }
     pub fn tag(&self) -> DwTag {
-            match self {
-                DwarfType::Primitive { .. } => DW_TAG_base_type,
-                DwarfType::Pointer { .. } => DW_TAG_pointer_type,
-                DwarfType::Array { .. } => DW_TAG_array_type,
-                DwarfType::Struct => DW_TAG_structure_type,
-                // TODO: Double check that subroutine_type is correct
-                DwarfType::Function => DW_TAG_subroutine_type,
-            }
+        match self {
+            DwarfType::Primitive { .. } => DW_TAG_base_type,
+            DwarfType::Pointer { .. } => DW_TAG_pointer_type,
+            DwarfType::Array { .. } => DW_TAG_array_type,
+            DwarfType::Struct => DW_TAG_structure_type,
+            // TODO: Double check that subroutine_type is correct
+            DwarfType::Function => DW_TAG_subroutine_type,
+        }
     }
 }
 
