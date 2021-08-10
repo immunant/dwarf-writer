@@ -19,3 +19,5 @@ gimli = { git = "https://github.com/gimli-rs/gimli", rev = "9382354805a9eb798ab6
 anyhow = "1.0.41"
 structopt = "0.3.21"
 tempfile = "3.2.0"
+log = "0.4.14"
+simple-log = "1.0.6"

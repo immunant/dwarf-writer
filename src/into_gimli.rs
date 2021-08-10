@@ -27,12 +27,9 @@ impl IntoGimli<gimli::Register> for &anvill::Register {
         let name_to_register = match self {
             Register::X86(_) => gimli::X86_64::name_to_register,
             Register::ARM(_) => gimli::Arm::name_to_register,
-            Register::SPARC(r) => {
-                return gimli::Register(*r as u16)
-            },
+            Register::SPARC(r) => return gimli::Register(*r as u16),
         };
-        let reg = name_to_register(&reg_string)
-            .unwrap_or_else(|| panic!("Couldn't map {:?} to `gimli::Register`", reg_string));
-        reg
+        name_to_register(&reg_string)
+            .unwrap_or_else(|| panic!("Couldn't map {:?} to `gimli::Register`", reg_string))
     }
 }

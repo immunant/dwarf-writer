@@ -1,5 +1,5 @@
 use anvill::AnvillInput;
-use anyhow::Result;
+use anyhow::{Error, Result};
 use dwarf_unit::{create_type_map, process_anvill};
 use elf::ELF;
 use std::path::PathBuf;
@@ -46,6 +46,7 @@ struct Opt {
 }
 
 fn main() -> Result<()> {
+    simple_log::quick().map_err(Error::msg)?;
     let opt = Opt::from_args();
 
     let mut elf = ELF::new(&opt.input_binary_path)?;
