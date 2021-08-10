@@ -46,11 +46,22 @@ struct Opt {
     objcopy_path: Option<PathBuf>,
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
+    // Has precedence over `verbose` flag
+    #[structopt(
+        short = "l",
+        long = "logging",
+        help = "Set logging level explicitly",
+        parse(from_str)
+    )]
+    logging: Option<String>,
 }
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
-    let log_level = if opt.verbose { "trace" } else { "info" };
+    let log_level = opt
+        .logging
+        .as_deref()
+        .unwrap_or(if opt.verbose { "trace" } else { "info" });
     let log_config = LogConfigBuilder::builder().level(log_level).build();
     simple_log::new(log_config).map_err(Error::msg)?;
 

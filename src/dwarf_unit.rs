@@ -7,7 +7,7 @@ use gimli::constants;
 use gimli::constants::*;
 use gimli::write::{LineProgram, Unit};
 use gimli::{Encoding, Format};
-use log::info;
+use log::trace;
 use object::Object;
 use std::collections::HashMap;
 
@@ -76,7 +76,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     let unit = dwarf.units.get_mut(unit_id);
 
     let root_entry = unit.get(unit.root());
-    info!(
+    trace!(
         "Processing root entry {:?}",
         root_entry.tag().static_string()
     );
@@ -110,7 +110,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
             children.append(&mut grandchildren);
 
             // Process an entry
-            info!("Processing entry {:?}", entry.tag().static_string());
+            trace!("Processing entry {:?}", entry.tag().static_string());
             if entry.tag() == DW_TAG_subprogram {
                 let mut entry_ref = EntryRef::new(unit, unit_id, entry_id);
                 // This pops the given function from the anvill data if it exists

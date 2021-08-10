@@ -3,7 +3,7 @@ use anyhow::Result;
 use gimli::read;
 use gimli::write::{Address, Dwarf, EndianVec, Sections};
 use gimli::{EndianSlice, RunTimeEndian, SectionId};
-use log::info;
+use log::warn;
 use object::{Object, ObjectSection};
 use std::borrow::Cow;
 use std::fs;
@@ -122,10 +122,10 @@ impl ELF {
                 let stdout = std::str::from_utf8(&output.stdout)?;
                 let stderr = std::str::from_utf8(&output.stderr)?;
                 if !stdout.is_empty() {
-                    info!("{}", stdout);
+                    warn!("{}", stdout);
                 }
                 if !stderr.is_empty() {
-                    info!("{}", stderr);
+                    warn!("{}", stderr);
                 }
             }
             Ok(())

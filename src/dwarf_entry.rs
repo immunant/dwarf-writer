@@ -3,6 +3,7 @@ use crate::dwarf_attr::*;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, Reference, Unit, UnitEntryId, UnitId};
+use log::debug;
 
 /// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]
@@ -143,25 +144,15 @@ impl<'a> EntryRef<'a> {
                 referent_ty,
                 indirection_levels: _,
             } => match type_map.get(referent_ty) {
-                Some(ref_ty) => {
-                    entry.set(
-                        DW_AT_type,
-                        AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),
-                    );
-                },
-                None => {
-                    todo!("Handle pointers which refer to types not found in the type map")
-                },
+                Some(ref_ty) => entry.set(
+                    DW_AT_type,
+                    AttributeValue::DebugInfoRef(Reference::Entry(self.unit_id, *ref_ty)),
+                ),
+                None => debug!("Handle pointers which refer to types not found in the type map"),
             },
-            DwarfType::Array { .. } => {
-                todo!("Handle arrays")
-            },
-            DwarfType::Struct => {
-                todo!("Handle structs")
-            },
-            DwarfType::Function => {
-                todo!("Handle functions")
-            },
+            DwarfType::Array { .. } => debug!("Handle arrays"),
+            DwarfType::Struct => debug!("Handle structs"),
+            DwarfType::Function => debug!("Handle functions"),
         }
     }
 }
