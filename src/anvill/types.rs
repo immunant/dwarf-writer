@@ -1,6 +1,7 @@
 use super::{PrimitiveType, Type};
 use crate::types::{CanonicalTypeName, DwarfType};
 use anyhow::Result;
+use log::debug;
 use serde::de;
 use serde::de::{Deserializer, Unexpected, Visitor};
 use serde::Deserialize;
@@ -136,8 +137,7 @@ impl TypeVisitor {
                 indirection_levels,
             })
         } else if s.starts_with('=') && is_bracketed(&s[2..], "{", "}") {
-            // TODO: Use actual logging
-            println!("WARNING: Identified anvill structs aren't supported yet");
+            debug!("Anvill's identified structs aren't supported yet. {:?} will be treated as normal struct", &s[2..]);
             Ok(Type::Struct)
         } else {
             Err(de::Error::invalid_value(Unexpected::Str(s), self))

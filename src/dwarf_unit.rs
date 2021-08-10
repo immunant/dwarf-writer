@@ -110,7 +110,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
             children.append(&mut grandchildren);
 
             // Process an entry
-            println!("Processing entry {:?}", entry.tag().static_string());
+            info!("Processing entry {:?}", entry.tag().static_string());
             if entry.tag() == DW_TAG_subprogram {
                 let mut entry_ref = EntryRef::new(unit, unit_id, entry_id);
                 // This pops the given function from the anvill data if it exists
