@@ -7,6 +7,7 @@ use gimli::constants;
 use gimli::constants::*;
 use gimli::write::{LineProgram, Unit};
 use gimli::{Encoding, Format};
+use log::info;
 use object::Object;
 use std::collections::HashMap;
 
@@ -75,7 +76,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     let unit = dwarf.units.get_mut(unit_id);
 
     let root_entry = unit.get(unit.root());
-    println!(
+    info!(
         "Processing root entry {:?}",
         root_entry.tag().static_string()
     );

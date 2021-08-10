@@ -2,6 +2,7 @@ use anvill::AnvillInput;
 use anyhow::{Error, Result};
 use dwarf_unit::{create_type_map, process_anvill};
 use elf::ELF;
+use simple_log::LogConfigBuilder;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -43,11 +44,15 @@ struct Opt {
         parse(from_os_str)
     )]
     objcopy_path: Option<PathBuf>,
+    #[structopt(short = "v", long = "verbose")]
+    verbose: bool,
 }
 
 fn main() -> Result<()> {
-    simple_log::quick().map_err(Error::msg)?;
     let opt = Opt::from_args();
+    let log_level = if opt.verbose { "trace" } else { "info" };
+    let log_config = LogConfigBuilder::builder().level(log_level).build();
+    simple_log::new(log_config).map_err(Error::msg)?;
 
     let mut elf = ELF::new(&opt.input_binary_path)?;
 
