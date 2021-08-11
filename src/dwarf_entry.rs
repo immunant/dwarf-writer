@@ -1,16 +1,18 @@
 use crate::anvill::AnvillFnMap;
 use crate::dwarf_attr::*;
+use crate::elf::ELF;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, DebuggingInformationEntry, Dwarf, Reference, Unit,
                    UnitEntryId, UnitId};
 use log::debug;
+use object::Object;
 use std::ops::{Deref, DerefMut};
 
 /// Reference to an entry in a `gimli::write::Unit`.
 #[derive(Debug)]
 pub struct EntryRef<'a> {
-    dwarf: &'a mut Dwarf,
+    elf: &'a mut ELF,
     // The entry's ID.
     id: UnitEntryId,
 }
@@ -38,22 +40,22 @@ impl<'a> From<&EntryRef<'a>> for AttributeValue {
 }
 
 impl<'a> EntryRef<'a> {
-    pub fn new(dwarf: &'a mut Dwarf, id: UnitEntryId) -> Self {
-        EntryRef { dwarf, id }
+    pub fn new(elf: &'a mut ELF, id: UnitEntryId) -> Self {
+        EntryRef { elf, id }
     }
 
     fn unit_id(&self) -> UnitId {
-        self.dwarf.units.id(0)
+        self.elf.dwarf.units.id(0)
     }
 
     fn get_unit(&self) -> &Unit {
         let root = self.unit_id();
-        self.dwarf.units.get(root)
+        self.elf.dwarf.units.get(root)
     }
 
     fn get_mut_unit(&mut self) -> &mut Unit {
         let root = self.unit_id();
-        self.dwarf.units.get_mut(root)
+        self.elf.dwarf.units.get_mut(root)
     }
 
     fn new_sibling(&mut self, tag: DwTag) -> EntryRef {
@@ -61,13 +63,13 @@ impl<'a> EntryRef<'a> {
             .parent()
             .expect("`new_sibling` cannot be called on root entry");
         let sibling_id = self.get_mut_unit().add(parent, tag);
-        EntryRef::new(self.dwarf, sibling_id)
+        EntryRef::new(self.elf, sibling_id)
     }
 
     fn new_child(&mut self, tag: DwTag) -> EntryRef {
         let id = self.id;
         let child_id = self.get_mut_unit().add(id, tag);
-        EntryRef::new(self.dwarf, child_id)
+        EntryRef::new(self.elf, child_id)
     }
 
     /// Initializes a newly created subprogram entry.
@@ -164,8 +166,8 @@ impl<'a> EntryRef<'a> {
                 match type_map.get(pointee_type) {
                     // If the pointee type has already been seen
                     Some(pointee_ty_id) => {
-                        // TODO: Handle setting pointer size. May need to reference ELF in EntryRef
-                        //self.set(DW_AT_byte_size, AttributeValue::Data1(8));
+                        let ptr_size = if self.elf.object().is_64() { 8 } else { 4 };
+                        self.set(DW_AT_byte_size, AttributeValue::Data1(ptr_size));
                         let pointee_ty_entry = Reference::Entry(self.unit_id(), *pointee_ty_id);
                         self.set(DW_AT_type, AttributeValue::DebugInfoRef(pointee_ty_entry));
                     },

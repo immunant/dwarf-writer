@@ -5,7 +5,7 @@ use crate::elf::ELF;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants;
 use gimli::constants::*;
-use gimli::write::{Dwarf, LineProgram, Unit, UnitId, UnitEntryId};
+use gimli::write::{Dwarf, LineProgram, Unit, UnitEntryId, UnitId};
 use gimli::{Encoding, Format};
 use log::trace;
 use object::Object;
@@ -97,7 +97,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     // Add a child entry to the root for each type that isn't already in the map
     for ty in anvill.types {
         if !type_map.contains_key(&ty) {
-            let mut ty_entry = new_entry(&mut elf.dwarf, root_id, ty.tag());
+            let mut ty_entry = new_entry(elf, root_id, ty.tag());
             ty_entry.init_type(&ty, type_map);
 
             // Update the type map with the new type
@@ -119,7 +119,7 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
 
             match entry.tag() {
                 constants::DW_TAG_subprogram => {
-                    let mut fn_entry = EntryRef::new(&mut elf.dwarf, entry_id);
+                    let mut fn_entry = EntryRef::new(elf, entry_id);
 
                     // This removes the given function from the anvill data if it exists
                     fn_entry.update_fn(&mut anvill.fn_map, &type_map);
@@ -132,16 +132,16 @@ pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut Type
     // Add a subprogram entry for each remaining function
     let remaining_fn_addrs: Vec<_> = anvill.fn_map.keys().cloned().collect();
     for addr in remaining_fn_addrs {
-        let mut fn_entry = new_entry(&mut elf.dwarf, root_id, DW_TAG_subprogram);
+        let mut fn_entry = new_entry(elf, root_id, DW_TAG_subprogram);
         fn_entry.init_fn(addr, &mut anvill.fn_map, &type_map);
     }
     assert!(anvill.fn_map.is_empty());
 }
 
-fn new_entry(dwarf: &mut Dwarf, parent: UnitEntryId, tag: DwTag) -> EntryRef {
-    let unit_id = dwarf.units.id(0);
-    let unit = dwarf.units.get_mut(unit_id);
+fn new_entry(elf: &mut ELF, parent: UnitEntryId, tag: DwTag) -> EntryRef {
+    let unit_id = elf.dwarf.units.id(0);
+    let unit = elf.dwarf.units.get_mut(unit_id);
 
     let id = unit.add(parent, tag);
-    EntryRef::new(dwarf, id)
+    EntryRef::new(elf, id)
 }
