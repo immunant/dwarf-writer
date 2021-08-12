@@ -1,6 +1,6 @@
 use anvill::AnvillInput;
 use anyhow::{Error, Result};
-use dwarf_unit::{create_type_map, process_anvill};
+use dwarf_unit::DwarfUnitRef;
 use elf::ELF;
 use simple_log::LogConfigBuilder;
 use std::path::PathBuf;
@@ -67,11 +67,13 @@ fn main() -> Result<()> {
 
     let mut elf = ELF::new(&opt.input_binary_path)?;
 
-    let mut type_map = create_type_map(&elf.dwarf);
+    let mut dwarf = DwarfUnitRef::new(&mut elf);
+
+    let mut type_map = dwarf.create_type_map();
 
     if let Some(path) = opt.anvill_path {
         let input = AnvillInput::new(path)?;
-        process_anvill(&mut elf, input.data(), &mut type_map);
+        dwarf.process_anvill(input.data(), &mut type_map);
     };
 
     elf.update_binary(opt.output_binary_path, opt.objcopy_path, opt.output_dir)?;

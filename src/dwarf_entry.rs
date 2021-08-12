@@ -1,11 +1,10 @@
-use crate::anvill::AnvillFnMap;
+use crate::anvill::{AnvillFnMap, AnvillVarMap};
 use crate::dwarf_attr::*;
 use crate::elf::ELF;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
-use gimli::write::{Address, AttributeValue, DebuggingInformationEntry, Dwarf, Reference, Unit,
-                   UnitEntryId, UnitId};
-use log::debug;
+use gimli::write::{Address, AttributeValue, DebuggingInformationEntry, Unit, UnitEntryId, UnitId};
+use log::trace;
 use object::Object;
 use std::ops::{Deref, DerefMut};
 
@@ -30,12 +29,6 @@ impl DerefMut for EntryRef<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let id = self.id;
         self.get_mut_unit().get_mut(id)
-    }
-}
-
-impl<'a> From<&EntryRef<'a>> for AttributeValue {
-    fn from(entry_ref: &EntryRef) -> AttributeValue {
-        AttributeValue::DebugInfoRef(Reference::Entry(entry_ref.unit_id(), entry_ref.id))
     }
 }
 
@@ -92,13 +85,7 @@ impl<'a> EntryRef<'a> {
         let fn_data = anvill_data.remove(&start_address);
         if let Some(fn_data) = fn_data {
             // Update function name
-            let old_name = self.get(DW_AT_name);
-            let new_name = match (old_name, fn_data.name) {
-                (None, None) => Some(format!("FUN_{:08x}", start_address)),
-                (Some(_), None) => None,
-                (_, Some(name)) => Some(name.to_string()),
-            };
-            if let Some(name) = new_name {
+            if let Some(name) = self.update_name(fn_data.name, "FUN_", start_address) {
                 self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
 
@@ -118,8 +105,7 @@ impl<'a> EntryRef<'a> {
                 let ret_type_entry_id = type_map
                     .get(&ret_type)
                     .expect("All types should be in the type map");
-                let ret_type_entry = Reference::Entry(self.unit_id(), *ret_type_entry_id);
-                self.set(DW_AT_type, AttributeValue::DebugInfoRef(ret_type_entry));
+                self.set(DW_AT_type, AttributeValue::UnitRef(*ret_type_entry_id));
             }
 
             if let Some(new_params) = &fn_data.func.parameters {
@@ -152,39 +138,83 @@ impl<'a> EntryRef<'a> {
         }
     }
 
+    fn update_name(&mut self, new_name: Option<&str>, prefix: &str, addr: u64) -> Option<String> {
+        let old_name = self.get(DW_AT_name);
+        match (old_name, new_name) {
+            (None, None) => Some(format!("{}{:08x}", prefix, addr)),
+            (Some(_), None) => None,
+            (_, Some(name)) => Some(name.to_string()),
+        }
+    }
+
+    pub fn init_var(&mut self, addr: u64, anvill_data: &mut AnvillVarMap, type_map: &TypeMap) {
+        self.set(DW_AT_location, addr_to_attr(addr));
+        self.update_var(anvill_data, type_map);
+    }
+
+    /// Updates an existing variable's entry.
+    pub fn update_var(&mut self, anvill_data: &mut AnvillVarMap, type_map: &TypeMap) {
+        let location = self
+            .get(DW_AT_location)
+            .expect("No DW_AT_location found in DW_TAG_variable entry");
+        let var_data = anvill_data
+            .keys()
+            .find(|&addr| addr_to_attr(*addr) == *location)
+            .cloned()
+            .map(|addr| anvill_data.remove(&addr))
+            .flatten();
+        if let Some(var_data) = var_data {
+            // Update variable name
+            if let Some(name) = self.update_name(var_data.name, "VAR_", var_data.var.address) {
+                self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
+            }
+
+            // Update variale type
+            let var_type = DwarfType::from(&var_data.var.r#type);
+            let var_type_entry_id = type_map
+                .get(&var_type)
+                .expect("All types should be in the type map");
+            self.set(DW_AT_type, AttributeValue::UnitRef(*var_type_entry_id));
+        }
+    }
+
     pub fn init_type<'ty>(&mut self, ty: &'ty DwarfType, type_map: &mut TypeMap) {
         match ty {
             DwarfType::Primitive { name, size } => {
                 assert_eq!(self.tag(), DW_TAG_base_type);
                 self.set(DW_AT_name, AttributeValue::String(Vec::from(name.clone())));
                 if let Some(size) = size {
-                    self.set(DW_AT_byte_size, AttributeValue::Data1(*size));
+                    self.set(DW_AT_byte_size, AttributeValue::Udata(*size));
                 };
             },
             DwarfType::Pointer(pointee_type) => {
                 assert_eq!(self.tag(), DW_TAG_pointer_type);
-                match type_map.get(pointee_type) {
+                let pointee = match type_map.get(pointee_type) {
                     // If the pointee type has already been seen
-                    Some(pointee_ty_id) => {
-                        let ptr_size = if self.elf.object().is_64() { 8 } else { 4 };
-                        self.set(DW_AT_byte_size, AttributeValue::Data1(ptr_size));
-                        let pointee_ty_entry = Reference::Entry(self.unit_id(), *pointee_ty_id);
-                        self.set(DW_AT_type, AttributeValue::DebugInfoRef(pointee_ty_entry));
-                    },
+                    Some(pointee_ty_id) => *pointee_ty_id,
                     None => {
-                        // If the pointee type has not been seen, create the type and add it to the
-                        // type map
+                        // If the pointee has not been seen, create its type and add it to the type
+                        // map
                         let mut pointee_ty_entry = self.new_sibling(pointee_type.tag());
                         pointee_ty_entry.init_type(&pointee_type, type_map);
-                        let pointee_ty_attr_value = AttributeValue::from(&pointee_ty_entry);
-                        pointee_ty_entry.set(DW_AT_type, pointee_ty_attr_value);
+                        trace!(
+                            "Mapping type {:?} to entry {:?}",
+                            *pointee_type.clone(),
+                            pointee_ty_entry.id
+                        );
+                        type_map.insert(*pointee_type.clone(), pointee_ty_entry.id);
+
+                        pointee_ty_entry.id
                     },
-                }
+                };
+                let ptr_size = if self.elf.object().is_64() { 8 } else { 4 };
+                self.set(DW_AT_byte_size, AttributeValue::Udata(ptr_size));
+                self.set(DW_AT_type, AttributeValue::UnitRef(pointee));
             },
+            DwarfType::Typedef(..) => (),
             DwarfType::Array { .. } => (),
             DwarfType::Struct => (),
             DwarfType::Function => (),
-            _ => (),
         }
     }
 }

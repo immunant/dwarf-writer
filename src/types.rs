@@ -1,23 +1,36 @@
 use gimli::constants::*;
 use gimli::write::UnitEntryId;
 use std::collections::HashMap;
+use std::fmt::Formatter;
 
 // Types may have various representations so `TypeName`s should be converted to
 // `CanonicalTypeName`s before being compared for equality.
 pub type TypeName = Vec<u8>;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CanonicalTypeName(TypeName);
+
+pub type TypeMap = HashMap<DwarfType, UnitEntryId>;
+
+impl std::fmt::Debug for CanonicalTypeName {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        match std::str::from_utf8(&self.0) {
+            Ok(s) => f.write_str(s),
+            _ => f.write_str("Non-UTF8 type name"),
+        }
+    }
+}
 
 // This enum directly maps onto the way type information is encoded as DWARF
 // info.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DwarfType {
     Primitive {
         name: CanonicalTypeName,
-        size: Option<u8>,
+        size: Option<u64>,
     },
     Pointer(Box<DwarfType>),
+    Typedef(CanonicalTypeName, Box<DwarfType>),
     Array {
         inner_type: Box<DwarfType>,
         len: u64,
@@ -28,13 +41,23 @@ pub enum DwarfType {
 
 impl DwarfType {
     /// Creates a new primitive type from a canonical type name.
-    pub fn new(name: CanonicalTypeName) -> Self {
-        DwarfType::Primitive { name, size: None }
+    pub fn new_primitive(name: CanonicalTypeName, size: Option<u64>) -> Self {
+        DwarfType::Primitive { name, size }
     }
+
+    pub fn new_pointer(pointee: DwarfType) -> Self {
+        DwarfType::Pointer(Box::new(pointee))
+    }
+
+    pub fn new_typedef(name: CanonicalTypeName, ref_ty: DwarfType) -> Self {
+        DwarfType::Typedef(name, Box::new(ref_ty))
+    }
+
     pub fn tag(&self) -> DwTag {
         match self {
             DwarfType::Primitive { .. } => DW_TAG_base_type,
             DwarfType::Pointer(_) => DW_TAG_pointer_type,
+            DwarfType::Typedef(..) => DW_TAG_typedef,
             DwarfType::Array { .. } => DW_TAG_array_type,
             DwarfType::Struct => DW_TAG_structure_type,
             // TODO: Double check that subroutine_type is correct
@@ -42,8 +65,6 @@ impl DwarfType {
         }
     }
 }
-
-pub type TypeMap = HashMap<DwarfType, UnitEntryId>;
 
 impl From<TypeName> for CanonicalTypeName {
     fn from(name: TypeName) -> CanonicalTypeName {

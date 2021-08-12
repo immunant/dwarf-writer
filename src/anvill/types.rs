@@ -38,7 +38,7 @@ impl Type {
     }
 
     /// Get the size of an anvill type.
-    pub fn size(&self) -> u8 {
+    pub fn size(&self) -> u64 {
         match self {
             Type::Bool => 1,
             Type::Primitive(PrimitiveType::b) => 1,

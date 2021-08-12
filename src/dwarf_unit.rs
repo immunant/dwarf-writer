@@ -1,147 +1,222 @@
 use crate::anvill::AnvillData;
-use crate::dwarf_attr::name_as_bytes;
+use crate::dwarf_attr::{attr_to_entry_id, attr_to_u64, name_as_bytes};
 use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
-use crate::types::{DwarfType, TypeMap};
+use crate::types::{CanonicalTypeName, DwarfType, TypeMap};
 use gimli::constants;
 use gimli::constants::*;
-use gimli::write::{Dwarf, LineProgram, Unit, UnitEntryId, UnitId};
+use gimli::write::{DebuggingInformationEntry, LineProgram, StringTable, Unit, UnitEntryId, UnitId};
 use gimli::{Encoding, Format};
 use log::trace;
 use object::Object;
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
-pub struct UnitRef<'a> {
-    elf: &'a ELF,
+pub struct DwarfUnitRef<'a> {
+    elf: &'a mut ELF,
     // The unit's ID.
     id: UnitId,
 }
 
-/// Creates a DWARF unit if none exists in the `ELF`.
-fn create_unit_if_needed(elf: &mut ELF) {
-    let is_64_bit = elf.object().is_64();
-    let dwarf = &mut elf.dwarf;
-    if dwarf.units.count() == 0 {
-        let format = if is_64_bit {
-            Format::Dwarf64
-        } else {
-            Format::Dwarf32
-        };
-        let encoding = Encoding {
-            address_size: format.word_size(),
-            format,
-            // TODO: Make this configurable
-            version: 4,
-        };
-        let line_program = LineProgram::none();
-        let root = Unit::new(encoding, line_program);
-        dwarf.units.add(root);
+impl Deref for DwarfUnitRef<'_> {
+    type Target = Unit;
+
+    fn deref(&self) -> &Self::Target {
+        let id = self.id;
+        self.elf.dwarf.units.get(id)
     }
 }
 
-/// Creates a type map from existing DWARF debug info. Returns an empty map if
-/// no debug info exists.
-pub fn create_type_map(dwarf: &Dwarf) -> TypeMap {
-    let mut type_map = HashMap::new();
+impl DerefMut for DwarfUnitRef<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        let id = self.id;
+        self.elf.dwarf.units.get_mut(id)
+    }
+}
 
-    // Return an empty `TypeMap` if no debug info exists
-    if dwarf.units.count() != 0 {
-        let unit_id = dwarf.units.id(0);
-        let unit = dwarf.units.get(unit_id);
+impl<'a> DwarfUnitRef<'a> {
+    /// Creates a DWARF unit if none exists in the `ELF`.
+    pub fn new(elf: &'a mut ELF) -> Self {
+        let num_units = elf.dwarf.units.count();
+        if num_units == 0 {
+            let is_64_bit = elf.object().is_64();
+            let format = if is_64_bit {
+                Format::Dwarf64
+            } else {
+                Format::Dwarf32
+            };
+            let encoding = Encoding {
+                address_size: format.word_size(),
+                format,
+                version: 4,
+            };
+            let line_program = LineProgram::none();
+            let unit = Unit::new(encoding, line_program);
+            elf.dwarf.units.add(unit);
+        }
+        let id = elf.dwarf.units.id(0);
+        DwarfUnitRef { elf, id }
+    }
 
-        let root = unit.get(unit.root());
-        // TODO: This assumes all types are children of the root
-        for &child in root.children() {
-            let entry = unit.get(child);
-            // Add type entries to the type map
-            match entry.tag() {
-                constants::DW_TAG_base_type => {
-                    if let Some(name_attr) = entry.get(DW_AT_name) {
-                        let name = name_as_bytes(name_attr, &dwarf.strings).to_vec();
+    fn new_entry(&mut self, parent: UnitEntryId, tag: DwTag) -> EntryRef {
+        let id = self.add(parent, tag);
+        self.entry_ref(id)
+    }
 
-                        // Insert the type entry Id indexed by the canonical type name into the map
-                        type_map.insert(DwarfType::new(name.into()), child);
-                    };
-                },
-                constants::DW_TAG_pointer_type => {
-                    // TODO: Handle this and the other missing cases
-                },
-                _ => {},
+    fn entry_ref(&mut self, id: UnitEntryId) -> EntryRef {
+        EntryRef::new(self.elf, id)
+    }
+
+    fn strings(&self) -> &StringTable {
+        &self.elf.dwarf.strings
+    }
+
+    /// Creates a type map from existing DWARF debug info. Returns an empty map
+    /// if no debug info exists.
+    pub fn create_type_map(&self) -> TypeMap {
+        fn try_insert_pointer_type(
+            entry: &DebuggingInformationEntry, type_map: &mut TypeMap,
+        ) -> Option<DwarfType> {
+            if let Some(pointee_type) = entry.get(DW_AT_type) {
+                let pointee_id = attr_to_entry_id(pointee_type);
+                let pointee =
+                    type_map
+                        .iter()
+                        .find_map(|(k, &v)| if v == pointee_id { Some(k) } else { None });
+                match pointee {
+                    Some(pointee) => {
+                        trace!(
+                            "Inserting pointer type referencing {:?} into type_map",
+                            pointee_type
+                        );
+                        Some(pointee.clone())
+                    },
+                    None => {
+                        trace!("Postponing inserting pointer type into type_map");
+                        None
+                    },
+                }
+            } else {
+                None
             }
         }
-    };
-    type_map
-}
 
-/// Write the anvill data as DWARF debug info and updates the type map with new
-/// type entries.
-pub fn process_anvill(elf: &mut ELF, mut anvill: AnvillData, type_map: &mut TypeMap) {
-    create_unit_if_needed(elf);
+        trace!("Creating a type map");
+        let mut type_map = HashMap::new();
+        let root = self.root();
 
-    fn unit(elf: &ELF) -> &Unit {
-        let id = elf.dwarf.units.id(0);
-        elf.dwarf.units.get(id)
-    }
+        let mut children: Vec<_> = self.get(root).children().cloned().collect();
+        while !children.is_empty() {
+            let current_iter: Vec<_> = children.drain(..).collect();
+            for child in current_iter {
+                let entry = self.get(child);
 
-    fn mut_unit(elf: &mut ELF) -> &mut Unit {
-        let id = elf.dwarf.units.id(0);
-        elf.dwarf.units.get_mut(id)
-    }
+                match entry.tag() {
+                    constants::DW_TAG_typedef => {
+                        trace!("Found a typedef entry");
+                        let name = entry
+                            .get(DW_AT_name)
+                            .expect("Typedef entry should have a name");
+                        match try_insert_pointer_type(entry, &mut type_map) {
+                            Some(ref_type) => {
+                                type_map.insert(
+                                    DwarfType::new_typedef(
+                                        name_as_bytes(name, self.strings()).to_vec().into(),
+                                        ref_type,
+                                    ),
+                                    child,
+                                );
+                            },
+                            None => children.push(child),
+                        }
+                    },
+                    constants::DW_TAG_base_type => {
+                        trace!("Found a base_type entry");
+                        if let Some(name) = entry.get(DW_AT_name) {
+                            let name = CanonicalTypeName::from(name_as_bytes(name, self.strings()).to_vec());
+                            let size = entry.get(DW_AT_byte_size).map(|s| attr_to_u64(s));
 
-    // Get IDs first-generation children
-    let unit = unit(elf);
-    let root_id = unit.root();
-    let root_entry = unit.get(root_id);
-    let mut children: Vec<_> = root_entry.children().cloned().collect();
-
-    // Add a child entry to the root for each type that isn't already in the map
-    for ty in anvill.types {
-        if !type_map.contains_key(&ty) {
-            let mut ty_entry = new_entry(elf, root_id, ty.tag());
-            ty_entry.init_type(&ty, type_map);
-
-            // Update the type map with the new type
-            type_map.insert(ty, ty_entry.id());
-        }
-    }
-
-    // Iterate through the children excluding the newly added types
-    while !children.is_empty() {
-        let current_generation: Vec<_> = children.drain(..).collect();
-        for entry_id in current_generation {
-            let unit = mut_unit(elf);
-            let entry = unit.get(entry_id);
-
-            // Get the next generation children before mutating to avoid reprocessing newly
-            // created entries
-            let mut next_generation = entry.children().cloned().collect();
-            children.append(&mut next_generation);
-
-            match entry.tag() {
-                constants::DW_TAG_subprogram => {
-                    let mut fn_entry = EntryRef::new(elf, entry_id);
-
-                    // This removes the given function from the anvill data if it exists
-                    fn_entry.update_fn(&mut anvill.fn_map, &type_map);
-                },
-                _ => (),
+                            trace!(
+                                "Inserting base type named {:?} of size {:?} into type map",
+                                name,
+                                size
+                            );
+                            type_map.insert(DwarfType::new_primitive(name, size), child);
+                        };
+                    },
+                    constants::DW_TAG_pointer_type => {
+                        trace!("Found a pointer type entry");
+                        match try_insert_pointer_type(entry, &mut type_map) {
+                            Some(pointee) => {
+                                type_map.insert(DwarfType::new_pointer(pointee), child);
+                            },
+                            None => children.push(child),
+                        };
+                    },
+                    _ => (),
+                }
             }
         }
+
+        trace!("Created a type map from {} existing types", type_map.len());
+        type_map
     }
 
-    // Add a subprogram entry for each remaining function
-    let remaining_fn_addrs: Vec<_> = anvill.fn_map.keys().cloned().collect();
-    for addr in remaining_fn_addrs {
-        let mut fn_entry = new_entry(elf, root_id, DW_TAG_subprogram);
-        fn_entry.init_fn(addr, &mut anvill.fn_map, &type_map);
+    /// Write the anvill data as DWARF debug info and updates the type map with
+    /// new type entries.
+    pub fn process_anvill(&mut self, mut anvill: AnvillData, type_map: &mut TypeMap) {
+        // Get root ID
+        let root = self.root();
+
+        // Get the first-generation children before adding new types to avoid
+        // reprocessing the newly added type entries
+        let mut children: Vec<_> = self.get(root).children().cloned().collect();
+
+        trace!("Processing anvill types");
+        for ty in anvill.types {
+            if !type_map.contains_key(&ty) {
+                let mut ty_entry = self.new_entry(self.root(), ty.tag());
+                ty_entry.init_type(&ty, type_map);
+
+                // Update the type map with the new type
+                trace!("Mapping type {:?} to entry {:?}", ty, ty_entry.id());
+                type_map.insert(ty, ty_entry.id());
+            }
+        }
+
+        while !children.is_empty() {
+            let current_generation: Vec<_> = children.drain(..).collect();
+            for entry_id in current_generation {
+                let entry = self.get(entry_id);
+
+                let mut next_generation = entry.children().cloned().collect();
+                children.append(&mut next_generation);
+
+                match entry.tag() {
+                    constants::DW_TAG_variable => {
+                        let mut var_entry = self.entry_ref(entry_id);
+                        var_entry.update_var(&mut anvill.var_map, &type_map);
+                    },
+                    constants::DW_TAG_subprogram => {
+                        let mut fn_entry = self.entry_ref(entry_id);
+                        fn_entry.update_fn(&mut anvill.fn_map, &type_map);
+                    },
+                    _ => (),
+                }
+            }
+        }
+
+        let remaining_fn_addrs: Vec<_> = anvill.fn_map.keys().cloned().collect();
+        for addr in remaining_fn_addrs {
+            let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
+            fn_entry.init_fn(addr, &mut anvill.fn_map, &type_map);
+        }
+
+        let remaining_var_addrs: Vec<_> = anvill.var_map.keys().cloned().collect();
+        for addr in remaining_var_addrs {
+            let mut var_entry = self.new_entry(root, DW_TAG_variable);
+            var_entry.init_var(addr, &mut anvill.var_map, &type_map);
+        }
+        assert!(anvill.fn_map.is_empty());
     }
-    assert!(anvill.fn_map.is_empty());
-}
-
-fn new_entry(elf: &mut ELF, parent: UnitEntryId, tag: DwTag) -> EntryRef {
-    let unit_id = elf.dwarf.units.id(0);
-    let unit = elf.dwarf.units.get_mut(unit_id);
-
-    let id = unit.add(parent, tag);
-    EntryRef::new(elf, id)
 }

@@ -23,21 +23,29 @@ impl AnvillInput {
     pub fn data(&self) -> AnvillData {
         AnvillData {
             fn_map: self.functions(),
+            var_map: self.variables(),
             types: self.types().iter().map(|&t| t.into()).collect(),
         }
     }
 }
 
 pub type AnvillFnMap<'a> = HashMap<u64, FunctionRef<'a>>;
+pub type AnvillVarMap<'a> = HashMap<u64, VarRef<'a>>;
 
 pub struct AnvillData<'a> {
     pub fn_map: AnvillFnMap<'a>,
+    pub var_map: AnvillVarMap<'a>,
     pub types: Vec<DwarfType>,
 }
 
 #[derive(Debug)]
 pub struct FunctionRef<'a> {
     pub func: &'a Function,
+    pub name: Option<&'a str>,
+}
+
+pub struct VarRef<'a> {
+    pub var: &'a Variable,
     pub name: Option<&'a str>,
 }
 
@@ -55,6 +63,22 @@ impl AnvillInput {
                     .find(|&sym| sym.address == func.address)
                     .map(|s| s.name.as_str());
                 res.insert(func.address, FunctionRef { func, name });
+            }
+        }
+        res
+    }
+
+    pub fn variables(&self) -> AnvillVarMap {
+        let mut res = HashMap::new();
+        let vars = self.variables.as_ref();
+        let syms = self.symbols.as_ref();
+        if let (Some(vars), Some(syms)) = (vars, syms) {
+            for var in vars {
+                let name = syms
+                    .iter()
+                    .find(|&sym| sym.address == var.address)
+                    .map(|s| s.name.as_str());
+                res.insert(var.address, VarRef { var, name });
             }
         }
         res
@@ -157,8 +181,8 @@ pub struct Function {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Variable {
-    r#type: Type,
-    address: u64,
+    pub r#type: Type,
+    pub address: u64,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
