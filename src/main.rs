@@ -15,7 +15,7 @@ mod into_gimli;
 mod types;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "basic")]
+#[structopt(name = "dwarf-writer")]
 struct Opt {
     #[structopt(name = "input", help = "Input binary", parse(from_os_str))]
     input_binary_path: PathBuf,
@@ -24,23 +24,21 @@ struct Opt {
     #[structopt(
         short = "a",
         long = "anvill",
-        help = "Disassembly data produced by anvill",
+        help = "Read anvill disassembly data",
         parse(from_os_str)
     )]
     anvill_path: Option<PathBuf>,
-    //#[structopt(short = "m", long = "mindsight", parse(from_os_str))]
-    //mindsight_path: Option<PathBuf>,
     #[structopt(
         short = "o",
         long = "output_dir",
-        help = "Output directory to store updated DWARF sections in",
+        help = "Set output directory for updated DWARF sections",
         parse(from_os_str)
     )]
     output_dir: Option<PathBuf>,
     #[structopt(
         short = "x",
         long = "objcopy_path",
-        help = "Specify alternate path to objcopy",
+        help = "Specify path to objcopy",
         parse(from_os_str)
     )]
     objcopy_path: Option<PathBuf>,
@@ -62,7 +60,10 @@ fn main() -> Result<()> {
         .logging
         .as_deref()
         .unwrap_or(if opt.verbose { "trace" } else { "info" });
-    let log_config = LogConfigBuilder::builder().level(log_level).build();
+    let log_config = LogConfigBuilder::builder()
+        .level(log_level)
+        .output_console()
+        .build();
     simple_log::new(log_config).map_err(Error::msg)?;
 
     let mut elf = ELF::new(&opt.input_binary_path)?;
