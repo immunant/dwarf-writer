@@ -133,7 +133,9 @@ impl<'a> DwarfUnitRef<'a> {
                     constants::DW_TAG_base_type => {
                         trace!("Found a base_type entry");
                         if let Some(name) = entry.get(DW_AT_name) {
-                            let name = CanonicalTypeName::from(name_as_bytes(name, self.strings()).to_vec());
+                            let name = CanonicalTypeName::from(
+                                name_as_bytes(name, self.strings()).to_vec(),
+                            );
                             let size = entry.get(DW_AT_byte_size).map(|s| attr_to_u64(s));
 
                             trace!(

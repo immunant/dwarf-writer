@@ -153,7 +153,7 @@ dependencies = [
 [[package]]
 name = "gimli"
 version = "0.25.0"
-source = "git+https://github.com/gimli-rs/gimli?rev=9382354805a9eb798ab6174dce23e0315a128d60#9382354805a9eb798ab6174dce23e0315a128d60"
+source = "git+https://github.com/ayrtonm/gimli?branch=arm-reg-aliases#c8a9b813b0f4949912d49dd07c42615f3481004e"
 dependencies = [
  "fallible-iterator",
  "indexmap",

@@ -157,6 +157,11 @@ impl<'a> EntryRef<'a> {
         let location = self
             .get(DW_AT_location)
             .expect("No DW_AT_location found in DW_TAG_variable entry");
+        // TODO: Ideally I'd get the address from `location` above then check if the
+        // key's in the map, but I have to do it this way because the
+        // `gimli::write::Operations` which make up an `Expression` are intentionally
+        // kept private. There should be a way to tweak gimli to get the address of an
+        // expression.
         let var_data = anvill_data
             .keys()
             .find(|&addr| addr_to_attr(*addr) == *location)

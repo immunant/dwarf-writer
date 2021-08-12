@@ -14,7 +14,8 @@ serde_repr = "0.1"
 
 # Handling ELF and DWARF formats
 object = "0.25.3"
-gimli = { git = "https://github.com/gimli-rs/gimli", rev = "9382354805a9eb798ab6174dce23e0315a128d60" }
+#gimli = { git = "https://github.com/gimli-rs/gimli", rev = "9382354805a9eb798ab6174dce23e0315a128d60" }
+gimli = { git = "https://github.com/ayrtonm/gimli", branch = "arm-reg-aliases" }
 
 anyhow = "1.0.41"
 structopt = "0.3.21"
