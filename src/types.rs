@@ -30,16 +30,29 @@ pub enum DwarfType {
         size: Option<u64>,
     },
     Pointer(Box<DwarfType>),
-    Typedef(CanonicalTypeName, Box<DwarfType>),
+    Typedef {
+        name: CanonicalTypeName,
+        ref_type: Box<DwarfType>,
+    },
     Array {
         inner_type: Box<DwarfType>,
-        len: u64,
+        len: Option<u64>,
     },
-    Struct,
-    Function,
+    Struct(Vec<DwarfType>),
+    Function {
+        return_type: Box<DwarfType>,
+        args: Vec<DwarfType>,
+    },
 }
 
 impl DwarfType {
+    pub fn void() -> Self {
+        DwarfType::Primitive {
+            name: b"void".to_vec().into(),
+            size: Some(0),
+        }
+    }
+
     /// Creates a new primitive type from a canonical type name.
     pub fn new_primitive(name: CanonicalTypeName, size: Option<u64>) -> Self {
         DwarfType::Primitive { name, size }
@@ -50,18 +63,39 @@ impl DwarfType {
     }
 
     pub fn new_typedef(name: CanonicalTypeName, ref_ty: DwarfType) -> Self {
-        DwarfType::Typedef(name, Box::new(ref_ty))
+        DwarfType::Typedef {
+            name,
+            ref_type: Box::new(ref_ty),
+        }
+    }
+
+    pub fn new_array(inner_type: DwarfType, len: Option<u64>) -> Self {
+        DwarfType::Array {
+            inner_type: Box::new(inner_type),
+            len,
+        }
+    }
+
+    pub fn new_struct(fields: Vec<DwarfType>) -> Self {
+        DwarfType::Struct(fields)
+    }
+
+    pub fn new_function(return_type: DwarfType, args: Vec<DwarfType>) -> Self {
+        DwarfType::Function {
+            return_type: Box::new(return_type),
+            args,
+        }
     }
 
     pub fn tag(&self) -> DwTag {
         match self {
             DwarfType::Primitive { .. } => DW_TAG_base_type,
             DwarfType::Pointer(_) => DW_TAG_pointer_type,
-            DwarfType::Typedef(..) => DW_TAG_typedef,
+            DwarfType::Typedef { .. } => DW_TAG_typedef,
             DwarfType::Array { .. } => DW_TAG_array_type,
-            DwarfType::Struct => DW_TAG_structure_type,
+            DwarfType::Struct(_) => DW_TAG_structure_type,
             // TODO: Double check that subroutine_type is correct
-            DwarfType::Function => DW_TAG_subroutine_type,
+            DwarfType::Function { .. } => DW_TAG_subroutine_type,
         }
     }
 }

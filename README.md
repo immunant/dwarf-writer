@@ -1,6 +1,7 @@
 # Dwarf-writer
 
 Dwarf-writer updates a program's DWARF debug sections with information obtained through disassembly. The target program's debug info can either be updated in-place or written to a copy of the program. Writing the updated debug sections to individual files is also supported. For details on the sources of disassembly data and supported target architectures see [Disassembly_data.md](Disassembly_data.md).
+![demo](demo.gif)
 
 ## Building and prerequisites
 

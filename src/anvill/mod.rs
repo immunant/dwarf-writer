@@ -132,6 +132,10 @@ impl Arg {
     pub fn location(&self) -> &TaggedLocation {
         &self.value.location
     }
+
+    pub fn ty(&self) -> &Type {
+        &self.value.r#type
+    }
 }
 
 /// Represents a single Anvill input file.

@@ -75,10 +75,19 @@ impl From<&Type> for DwarfType {
             Type::Pointer(referent_ty) => DwarfType::Pointer(Box::new(referent_ty.as_ref().into())),
             Type::Array { inner_type, len } => DwarfType::Array {
                 inner_type: Box::new(inner_type.as_ref().into()),
-                len: *len,
+                len: Some(*len),
             },
-            Type::Struct => DwarfType::Struct,
-            Type::Function => DwarfType::Function,
+            Type::Struct => {
+                debug!("Writing struct info provided by anvill is not supported yet");
+                DwarfType::Struct(Vec::new())
+            },
+            Type::Function => {
+                debug!("Writing function type info provided by anvill is not supported yet");
+                DwarfType::Function {
+                    return_type: Box::new(DwarfType::void()),
+                    args: Vec::new(),
+                }
+            },
             _ => todo!(
                 "Map missing type {:?} from an `anvill::Type` type to a `DwarfType`",
                 anvill_ty

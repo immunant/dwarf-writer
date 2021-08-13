@@ -61,6 +61,9 @@ pub fn attr_to_u8(attr: &AttributeValue) -> u8 {
 
 pub fn attr_to_u64(attr: &AttributeValue) -> u64 {
     match attr {
+        AttributeValue::Data1(b) => *b as u64,
+        AttributeValue::Data2(b) => *b as u64,
+        AttributeValue::Data4(b) => *b as u64,
         AttributeValue::Data8(b) => *b,
         AttributeValue::Udata(b) => *b,
         _ => panic!(

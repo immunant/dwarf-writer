@@ -74,7 +74,10 @@ impl<'a> DwarfUnitRef<'a> {
     /// Creates a type map from existing DWARF debug info. Returns an empty map
     /// if no debug info exists.
     pub fn create_type_map(&self) -> TypeMap {
-        fn try_insert_pointer_type(
+        /// Searches the type map for the pointee of a type entry referencing
+        /// another type. Returns `None` if the pointee has not been inserted
+        /// into the type map.
+        fn get_type_pointee(
             entry: &DebuggingInformationEntry, type_map: &mut TypeMap,
         ) -> Option<DwarfType> {
             if let Some(pointee_type) = entry.get(DW_AT_type) {
@@ -85,14 +88,11 @@ impl<'a> DwarfUnitRef<'a> {
                         .find_map(|(k, &v)| if v == pointee_id { Some(k) } else { None });
                 match pointee {
                     Some(pointee) => {
-                        trace!(
-                            "Inserting pointer type referencing {:?} into type_map",
-                            pointee_type
-                        );
+                        trace!("Found pointee type {:?} in type map", pointee_type);
                         Some(pointee.clone())
                     },
                     None => {
-                        trace!("Postponing inserting pointer type into type_map");
+                        trace!("Did not find pointee in type map");
                         None
                     },
                 }
@@ -112,24 +112,6 @@ impl<'a> DwarfUnitRef<'a> {
                 let entry = self.get(child);
 
                 match entry.tag() {
-                    constants::DW_TAG_typedef => {
-                        trace!("Found a typedef entry");
-                        let name = entry
-                            .get(DW_AT_name)
-                            .expect("Typedef entry should have a name");
-                        match try_insert_pointer_type(entry, &mut type_map) {
-                            Some(ref_type) => {
-                                type_map.insert(
-                                    DwarfType::new_typedef(
-                                        name_as_bytes(name, self.strings()).to_vec().into(),
-                                        ref_type,
-                                    ),
-                                    child,
-                                );
-                            },
-                            None => children.push(child),
-                        }
-                    },
                     constants::DW_TAG_base_type => {
                         trace!("Found a base_type entry");
                         if let Some(name) = entry.get(DW_AT_name) {
@@ -148,12 +130,58 @@ impl<'a> DwarfUnitRef<'a> {
                     },
                     constants::DW_TAG_pointer_type => {
                         trace!("Found a pointer type entry");
-                        match try_insert_pointer_type(entry, &mut type_map) {
+                        match get_type_pointee(entry, &mut type_map) {
                             Some(pointee) => {
                                 type_map.insert(DwarfType::new_pointer(pointee), child);
                             },
                             None => children.push(child),
                         };
+                    },
+                    constants::DW_TAG_typedef => {
+                        trace!("Found a typedef entry");
+                        let name = entry
+                            .get(DW_AT_name)
+                            .expect("Typedef entry should have a name");
+                        match get_type_pointee(entry, &mut type_map) {
+                            Some(ref_type) => {
+                                type_map.insert(
+                                    DwarfType::new_typedef(
+                                        name_as_bytes(name, self.strings()).to_vec().into(),
+                                        ref_type,
+                                    ),
+                                    child,
+                                );
+                            },
+                            None => children.push(child),
+                        }
+                    },
+                    constants::DW_TAG_array_type => {
+                        trace!("Found an array type entry");
+                        let len = entry.children().find_map(|&id| {
+                            let child = self.get(id);
+                            if child.tag() == DW_TAG_subrange_type {
+                                child.get(DW_AT_upper_bound).map(attr_to_u64)
+                            } else {
+                                None
+                            }
+                        });
+                        match get_type_pointee(entry, &mut type_map) {
+                            Some(pointee) => {
+                                type_map.insert(DwarfType::new_array(pointee, len), child);
+                            },
+                            None => children.push(child),
+                        }
+                    },
+                    constants::DW_TAG_structure_type => {},
+                    constants::DW_TAG_subroutine_type => {
+                        trace!("Found a subroutine type entry");
+                        match get_type_pointee(entry, &mut type_map) {
+                            Some(pointee) => {
+                                type_map
+                                    .insert(DwarfType::new_function(pointee, Vec::new()), child);
+                            },
+                            None => children.push(child),
+                        }
                     },
                     _ => (),
                 }
@@ -197,11 +225,11 @@ impl<'a> DwarfUnitRef<'a> {
                 match entry.tag() {
                     constants::DW_TAG_variable => {
                         let mut var_entry = self.entry_ref(entry_id);
-                        var_entry.update_var(&mut anvill.var_map, &type_map);
+                        var_entry.update_var(&mut anvill.var_map, type_map);
                     },
                     constants::DW_TAG_subprogram => {
                         let mut fn_entry = self.entry_ref(entry_id);
-                        fn_entry.update_fn(&mut anvill.fn_map, &type_map);
+                        fn_entry.update_fn(&mut anvill.fn_map, type_map);
                     },
                     _ => (),
                 }
@@ -211,13 +239,13 @@ impl<'a> DwarfUnitRef<'a> {
         let remaining_fn_addrs: Vec<_> = anvill.fn_map.keys().cloned().collect();
         for addr in remaining_fn_addrs {
             let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
-            fn_entry.init_fn(addr, &mut anvill.fn_map, &type_map);
+            fn_entry.init_fn(addr, &mut anvill.fn_map, type_map);
         }
 
         let remaining_var_addrs: Vec<_> = anvill.var_map.keys().cloned().collect();
         for addr in remaining_var_addrs {
             let mut var_entry = self.new_entry(root, DW_TAG_variable);
-            var_entry.init_var(addr, &mut anvill.var_map, &type_map);
+            var_entry.init_var(addr, &mut anvill.var_map, type_map);
         }
         assert!(anvill.fn_map.is_empty());
     }

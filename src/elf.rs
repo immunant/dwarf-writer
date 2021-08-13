@@ -45,7 +45,7 @@ impl ELF {
             Ok(section.unwrap_or(empty))
         };
         let owned_dwarf = read::Dwarf::load(load_section)?;
-        let read_only_dwarf = owned_dwarf.borrow(|section| EndianSlice::new(&section, endianness));
+        let read_only_dwarf = owned_dwarf.borrow(|section| EndianSlice::new(section, endianness));
         let dwarf = Dwarf::from(&read_only_dwarf, &|addr| Some(Address::Constant(addr)))?;
 
         Ok(Self {

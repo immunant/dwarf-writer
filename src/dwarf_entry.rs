@@ -127,6 +127,11 @@ impl<'a> EntryRef<'a> {
                 for param in new_params {
                     let mut param_entry = self.new_child(DW_TAG_formal_parameter);
                     param_entry.set(DW_AT_location, AttributeValue::from(param.location()));
+                    let param_ty = DwarfType::from(param.ty());
+                    let param_ty_id = type_map
+                        .get(&param_ty)
+                        .expect("All types should be in the type map");
+                    param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
                     if let Some(param_name) = param.name() {
                         param_entry.set(
                             DW_AT_name,
@@ -201,7 +206,7 @@ impl<'a> EntryRef<'a> {
                         // If the pointee has not been seen, create its type and add it to the type
                         // map
                         let mut pointee_ty_entry = self.new_sibling(pointee_type.tag());
-                        pointee_ty_entry.init_type(&pointee_type, type_map);
+                        pointee_ty_entry.init_type(pointee_type, type_map);
                         trace!(
                             "Mapping type {:?} to entry {:?}",
                             *pointee_type.clone(),
@@ -216,10 +221,46 @@ impl<'a> EntryRef<'a> {
                 self.set(DW_AT_byte_size, AttributeValue::Udata(ptr_size));
                 self.set(DW_AT_type, AttributeValue::UnitRef(pointee));
             },
-            DwarfType::Typedef(..) => (),
-            DwarfType::Array { .. } => (),
-            DwarfType::Struct => (),
-            DwarfType::Function => (),
+            DwarfType::Typedef { .. } => {
+                assert_eq!(self.tag(), DW_TAG_typedef);
+            },
+            DwarfType::Array { inner_type, len } => {
+                assert_eq!(self.tag(), DW_TAG_array_type);
+                let inner = match type_map.get(inner_type) {
+                    Some(id) => *id,
+                    None => {
+                        let mut inner_ty_entry = self.new_sibling(inner_type.tag());
+                        inner_ty_entry.init_type(inner_type, type_map);
+                        type_map.insert(*inner_type.clone(), inner_ty_entry.id);
+                        inner_ty_entry.id
+                    },
+                };
+                self.set(DW_AT_type, AttributeValue::UnitRef(inner));
+                let mut array_size = self.new_child(DW_TAG_subrange_type);
+                if let Some(len) = len {
+                    // TODO: Try encoding the size with less space
+                    array_size.set(DW_AT_upper_bound, AttributeValue::Data8(*len));
+                };
+            },
+            DwarfType::Struct(_) => {
+                assert_eq!(self.tag(), DW_TAG_structure_type);
+            },
+            DwarfType::Function {
+                return_type,
+                args: _,
+            } => {
+                assert_eq!(self.tag(), DW_TAG_subroutine_type);
+                let ret = match type_map.get(return_type) {
+                    Some(ret_ty_id) => *ret_ty_id,
+                    None => {
+                        let mut ret_ty_entry = self.new_sibling(return_type.tag());
+                        ret_ty_entry.init_type(return_type, type_map);
+                        type_map.insert(*return_type.clone(), ret_ty_entry.id);
+                        ret_ty_entry.id
+                    },
+                };
+                self.set(DW_AT_type, AttributeValue::UnitRef(ret));
+            },
         }
     }
 }
