@@ -22,23 +22,26 @@ struct Opt {
     #[structopt(name = "output", help = "Output binary", parse(from_os_str))]
     output_binary_path: Option<PathBuf>,
     #[structopt(
+        name = "anvill-data",
         short = "a",
         long = "anvill",
-        help = "Read anvill disassembly data",
+        help = "Anvill disassembly data",
         parse(from_os_str)
     )]
     anvill_path: Option<PathBuf>,
     #[structopt(
-        short = "o",
-        long = "output_dir",
-        help = "Set output directory for updated DWARF sections",
+        name = "output-dir",
+        short = "s",
+        long = "section-files",
+        help = "Output directory for writing DWARF sections to individual files",
         parse(from_os_str)
     )]
     output_dir: Option<PathBuf>,
     #[structopt(
+        name = "objcopy-path",
         short = "x",
-        long = "objcopy_path",
-        help = "Specify path to objcopy",
+        long = "objcopy",
+        help = "Alternate objcopy to use (defaults to objcopy in PATH)",
         parse(from_os_str)
     )]
     objcopy_path: Option<PathBuf>,
@@ -46,6 +49,7 @@ struct Opt {
     verbose: bool,
     // Has precedence over `verbose` flag
     #[structopt(
+        name = "level",
         short = "l",
         long = "logging",
         help = "Set logging level explicitly",

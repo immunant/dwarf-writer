@@ -1,10 +1,10 @@
 # Dwarf-writer
 
-Dwarf-writer updates DWARF debug sections with information obtained through disassembly. The target program's debug info can be either updated in-place or written to a copy of the program. Writing the updated debug sections to individual files is also supported.
+Dwarf-writer updates a program's DWARF debug sections with information obtained through disassembly. The target program's debug info can either be updated in-place or written to a copy of the program. Writing the updated debug sections to individual files is also supported. For details on the sources of disassembly data and supported target architectures see [Disassembly_data.md](Disassembly_data.md).
 
 ## Building and prerequisites
 
-Building dwarf-writer requires a [rust installation](https://www.rust-lang.org/) and [objcopy](https://www.gnu.org/software/binutils/) cross-compiled for the target program's architecture.
+Building dwarf-writer requires a [rust installation](https://www.rust-lang.org/) and [objcopy](https://www.gnu.org/software/binutils/) cross-compiled for the target program's architecture. Most linux distributions provide a version of objcopy that can be used for native binaries and is used by default if it's in the system's PATH. After setting up those prerequisites, clone this tool's repo and build it with the following steps.
 
 ```
 $ git clone https://github.com/immunant/dwarf-writer
@@ -13,21 +13,17 @@ $ cd dwarf-writer
 
 $ cargo build --release
 
-# To run dwarf-writer
+# To run dwarf-writer with cargo
 $ cargo run -- -a $ANVILL_JSON -x /path/to/objcopy $BINARY
 
-# dwarf-writer can also be run without cargo
+# To run dwarf-writer without cargo
 $ ./target/release/dwarf-writer -a $ANVILL_JSON -x /path/to/objcopy $BINARY
 
 # To install dwarf-writer
 $ cargo install --path .
 ```
 
-## Supported target architectures
-
-Target architecture support depends on the input disassembly data sources. Currently the only disassembly data source supported is a limited subset of the [JSON specification](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md) produced by [Anvill's](https://github.com/lifting-bits/anvill/) python plugin which supports x86, ARM and SPARC. See the [spec docs](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md#architecture) for details.
-
-## Example usage:
+## Usage
 
 ```
 $ dwarf-writer -h
@@ -42,22 +38,22 @@ FLAGS:
     -v, --verbose    
 
 OPTIONS:
-    -a, --anvill <anvill-path>           Read anvill disassembly data
-    -l, --logging <logging>              Set logging level explicitly
-    -x, --objcopy_path <objcopy-path>    Specify path to objcopy
-    -o, --output_dir <output-dir>        Set output directory for updated DWARF sections
+    -a, --anvill <anvill-data>          Anvill disassembly data
+    -l, --logging <level>               Set logging level explicitly
+    -x, --objcopy <objcopy-path>        Alternate objcopy to use (defaults to objcopy in PATH)
+    -s, --section-files <output-dir>    Output directory for writing DWARF sections to individual files
 
 ARGS:
     <input>     Input binary
     <output>    Output binary
 
-# To update the program's debug info in-place
+# To update the program's debug info in-place using the objcopy in PATH
 $ dwarf-writer -a $ANVILL_JSON $BINARY
 
 # To update the debug info in a copy of the program
 $ dwarf-writer -a $ANVILL_JSON $IN_BINARY $OUT_BINARY
 
-# Specify an alternate objcopy path to run dwarf-writer on binaries for other architectures
+# Specify an alternate path to objcopy to run dwarf-writer on binaries for other architectures
 $ dwarf-writer -a $ANVILL_JSON -x /usr/bin/arm-linux-gnueabihf-objcopy $BINARY
 
 # To view the program's updated debug info
