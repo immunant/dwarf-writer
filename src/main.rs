@@ -28,7 +28,7 @@ struct Opt {
         help = "Anvill disassembly data",
         parse(from_os_str)
     )]
-    anvill_path: Option<PathBuf>,
+    anvill_paths: Vec<PathBuf>,
     #[structopt(
         name = "output-dir",
         short = "s",
@@ -76,7 +76,7 @@ fn main() -> Result<()> {
 
     let mut type_map = dwarf.create_type_map();
 
-    if let Some(path) = opt.anvill_path {
+    for path in opt.anvill_paths {
         let input = AnvillInput::new(path)?;
         dwarf.process_anvill(input.data(), &mut type_map);
     };
