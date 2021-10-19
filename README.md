@@ -15,10 +15,10 @@ $ cd dwarf-writer
 $ cargo build --release
 
 # To run dwarf-writer with cargo
-$ cargo run -- -a $ANVILL_JSON -x /path/to/objcopy $BINARY
+$ cargo run -- -a $ANVILL_JSON -b $STR_JSON -x /path/to/objcopy $BINARY
 
 # To run dwarf-writer without cargo
-$ ./target/release/dwarf-writer -a $ANVILL_JSON -x /path/to/objcopy $BINARY
+$ ./target/release/dwarf-writer -a $ANVILL_JSON -b $STR_JSON -x /path/to/objcopy $BINARY
 
 # To install dwarf-writer
 $ cargo install --path .
@@ -31,31 +31,33 @@ $ dwarf-writer -h
 dwarf-writer 0.1.0
 
 USAGE:
-    dwarf-writer [FLAGS] [OPTIONS] <input> [output]
+    dwarf-writer [FLAGS] [OPTIONS] <input> [--] [output]
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-    -v, --verbose    
+    -h, --help           Prints help information
+    -u, --use-all-str    Use all entries in STR data regardless of confidence level
+    -V, --version        Prints version information
+    -v, --verbose        
 
 OPTIONS:
-    -a, --anvill <anvill-data>          Anvill disassembly data
+    -a, --anvill <anvill-data>...       Anvill disassembly data
     -l, --logging <level>               Set logging level explicitly
     -x, --objcopy <objcopy-path>        Alternate objcopy to use (defaults to objcopy in PATH)
     -s, --section-files <output-dir>    Output directory for writing DWARF sections to individual files
+    -b, --str-bsi <str-data>...         STR BSI disassembly data
 
 ARGS:
     <input>     Input binary
     <output>    Output binary
 
 # To update the program's debug info in-place using the objcopy in PATH
-$ dwarf-writer -a $ANVILL_JSON $BINARY
+$ dwarf-writer -a $ANVILL_JSON -b $STR_JSON $BINARY
 
 # To update the debug info in a copy of the program
-$ dwarf-writer -a $ANVILL_JSON $IN_BINARY $OUT_BINARY
+$ dwarf-writer -a $ANVILL_JSON -b $STR_JSON $IN_BINARY $OUT_BINARY
 
 # Specify an alternate path to objcopy to run dwarf-writer on binaries for other architectures
-$ dwarf-writer -a $ANVILL_JSON -x /usr/bin/arm-linux-gnueabihf-objcopy $BINARY
+$ dwarf-writer -a $ANVILL_JSON -b $STR_JSON -x /usr/bin/arm-linux-gnueabihf-objcopy $BINARY
 
 # To view the program's updated debug info
 $ llvm-dwarfdump $BINARY

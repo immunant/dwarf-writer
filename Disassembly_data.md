@@ -2,7 +2,7 @@
 
 ## Anvill's python plugin
 
-Currently the only disassembly data source supported is a subset of the [JSON specification](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md) produced by [Anvill's](https://github.com/lifting-bits/anvill/) python plugin which supports x86, ARM and SPARC. See the spec docs for details on what it can provide.
+This tool supports a subset of the [JSON specification](https://github.com/lifting-bits/anvill/blob/master/docs/SpecificationFormat.md) produced by [Anvill's](https://github.com/lifting-bits/anvill/) python plugin which supports x86, ARM and SPARC. See the spec docs for details on what it can provide.
 
 ### Setting it up
 
