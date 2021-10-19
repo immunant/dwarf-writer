@@ -1,24 +1,16 @@
 #![allow(non_camel_case_types)]
 #![allow(clippy::upper_case_acronyms)]
 use crate::types::DwarfType;
-use anyhow::Result;
+use crate::InputFile;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
-use std::path::Path;
-use std::{fs, io};
 
 mod types;
 
-impl AnvillInput {
-    /// Loads a file to create a new `AnvillInput`.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = fs::File::open(path)?;
-        let reader = io::BufReader::new(file);
-        let hints = serde_json::from_reader(reader)?;
-        Ok(hints)
-    }
+impl InputFile for AnvillInput {}
 
+impl AnvillInput {
     /// Anvill data in a format suitable for writing as DWARF debug info.
     pub fn data(&self) -> AnvillData {
         AnvillData {

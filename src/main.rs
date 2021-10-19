@@ -2,8 +2,12 @@ use anvill::AnvillInput;
 use anyhow::{Error, Result};
 use dwarf_unit::DwarfUnitRef;
 use elf::ELF;
+use serde::Deserialize;
 use simple_log::LogConfigBuilder;
+use std::path::Path;
 use std::path::PathBuf;
+use std::{fs, io};
+use str_bsi::StrBsiInput;
 use structopt::StructOpt;
 
 mod anvill;
@@ -12,6 +16,7 @@ mod dwarf_entry;
 mod dwarf_unit;
 mod elf;
 mod into_gimli;
+mod str_bsi;
 mod types;
 
 #[derive(StructOpt, Debug)]
@@ -29,6 +34,14 @@ struct Opt {
         parse(from_os_str)
     )]
     anvill_paths: Vec<PathBuf>,
+    #[structopt(
+        name = "str-data",
+        short = "b",
+        long = "str-bsi",
+        help = "STR BSI disassembly data",
+        parse(from_os_str)
+    )]
+    str_bsi_paths: Vec<PathBuf>,
     #[structopt(
         name = "output-dir",
         short = "s",
@@ -58,6 +71,16 @@ struct Opt {
     logging: Option<String>,
 }
 
+pub trait InputFile: Sized + for<'de> Deserialize<'de> {
+    /// Loads a file to create a new `AnvillInput`.
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = fs::File::open(path)?;
+        let reader = io::BufReader::new(file);
+        let hints = serde_json::from_reader(reader)?;
+        Ok(hints)
+    }
+}
+
 fn main() -> Result<()> {
     let opt = Opt::from_args();
     let log_level = opt
@@ -79,7 +102,12 @@ fn main() -> Result<()> {
     for path in opt.anvill_paths {
         let input = AnvillInput::new(path)?;
         dwarf.process_anvill(input.data(), &mut type_map);
-    };
+    }
+
+    for path in opt.str_bsi_paths {
+        let input = StrBsiInput::new(path)?;
+        dwarf.process_str_bsi(input.data(), &mut type_map);
+    }
 
     elf.update_binary(opt.output_binary_path, opt.objcopy_path, opt.output_dir)?;
 
