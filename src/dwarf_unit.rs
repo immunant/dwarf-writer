@@ -2,6 +2,7 @@ use crate::anvill::AnvillData;
 use crate::dwarf_attr::{attr_to_entry_id, attr_to_u64, name_as_bytes};
 use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
+use crate::str_bsi::StrBsiData;
 use crate::types::{CanonicalTypeName, DwarfType, TypeMap};
 use gimli::constants;
 use gimli::constants::*;
@@ -192,18 +193,9 @@ impl<'a> DwarfUnitRef<'a> {
         type_map
     }
 
-    /// Write the anvill data as DWARF debug info and updates the type map with
-    /// new type entries.
-    pub fn process_anvill(&mut self, mut anvill: AnvillData, type_map: &mut TypeMap) {
-        // Get root ID
-        let root = self.root();
-
-        // Get the first-generation children before adding new types to avoid
-        // reprocessing the newly added type entries
-        let mut children: Vec<_> = self.get(root).children().cloned().collect();
-
+    fn update_types(&mut self, types: Vec<DwarfType>, type_map: &mut TypeMap) {
         trace!("Processing anvill types");
-        for ty in anvill.types {
+        for ty in types {
             if !type_map.contains_key(&ty) {
                 let mut ty_entry = self.new_entry(self.root(), ty.tag());
                 ty_entry.init_type(&ty, type_map);
@@ -213,6 +205,11 @@ impl<'a> DwarfUnitRef<'a> {
                 type_map.insert(ty, ty_entry.id());
             }
         }
+    }
+
+    fn for_each_entry<F: FnMut(&mut Self, &UnitEntryId)>(&mut self, mut f: F) {
+        let root = self.root();
+        let mut children: Vec<_> = self.get(root).children().cloned().collect();
 
         while !children.is_empty() {
             let current_generation: Vec<_> = children.drain(..).collect();
@@ -222,31 +219,61 @@ impl<'a> DwarfUnitRef<'a> {
                 let mut next_generation = entry.children().cloned().collect();
                 children.append(&mut next_generation);
 
-                match entry.tag() {
-                    constants::DW_TAG_variable => {
-                        let mut var_entry = self.entry_ref(entry_id);
-                        var_entry.update_var(&mut anvill.var_map, type_map);
-                    },
-                    constants::DW_TAG_subprogram => {
-                        let mut fn_entry = self.entry_ref(entry_id);
-                        fn_entry.update_fn(&mut anvill.fn_map, type_map);
-                    },
-                    _ => (),
-                }
+                f(self, &entry_id);
             }
         }
+    }
 
-        let remaining_fn_addrs: Vec<_> = anvill.fn_map.keys().cloned().collect();
+    /// Writes the anvill data as DWARF debug info and updates the type map with
+    /// new type entries.
+    pub fn process_anvill(&mut self, mut anvill: AnvillData, type_map: &mut TypeMap) {
+        let AnvillData {
+            types,
+            mut var_map,
+            mut fn_map,
+        } = anvill;
+        self.update_types(types, type_map);
+
+        self.for_each_entry(|dwarf, &entry_id| {
+            let entry = dwarf.get(entry_id);
+            match entry.tag() {
+                constants::DW_TAG_variable => {
+                    let mut var_entry = dwarf.entry_ref(entry_id);
+                    var_entry.update_var(&mut var_map, type_map);
+                },
+                constants::DW_TAG_subprogram => {
+                    let mut fn_entry = dwarf.entry_ref(entry_id);
+                    fn_entry.update_fn(&mut fn_map, type_map);
+                },
+                _ => (),
+            }
+        });
+
+        let root = self.root();
+        let remaining_fn_addrs: Vec<_> = fn_map.keys().cloned().collect();
         for addr in remaining_fn_addrs {
             let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
-            fn_entry.init_fn(addr, &mut anvill.fn_map, type_map);
+            fn_entry.init_fn(addr, &mut fn_map, type_map);
         }
 
-        let remaining_var_addrs: Vec<_> = anvill.var_map.keys().cloned().collect();
+        let remaining_var_addrs: Vec<_> = var_map.keys().cloned().collect();
         for addr in remaining_var_addrs {
             let mut var_entry = self.new_entry(root, DW_TAG_variable);
-            var_entry.init_var(addr, &mut anvill.var_map, type_map);
+            var_entry.init_var(addr, &mut var_map, type_map);
         }
-        assert!(anvill.fn_map.is_empty());
+        assert!(fn_map.is_empty());
+    }
+
+    /// Writes the STR BSI data as DWARF debug info and updates the type map
+    /// with new type entries.
+    pub fn process_str_bsi(&mut self, mut str_bsi: StrBsiData, type_map: &mut TypeMap) {
+        self.update_types(str_bsi.types, type_map);
+
+        self.for_each_entry(|dwarf, &entry_id| {
+            let entry = dwarf.get(entry_id);
+            if let constants::DW_TAG_subprogram = entry.tag() {
+                let mut fn_entry = dwarf.entry_ref(entry_id);
+            };
+        });
     }
 }

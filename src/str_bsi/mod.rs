@@ -25,11 +25,13 @@ impl StrBsiInput {
                 }
             })
             .collect();
+        let dwarf_types = self.types().iter().map(|&t| t.into()).collect();
         StrBsiData {
             fn_map,
-            types: self.types().iter().map(|&t| t.into()).collect(),
+            types: dwarf_types,
         }
     }
+
     pub fn types(&self) -> Vec<&Type> {
         let mut types = Vec::new();
         for (_, func) in &self.functions {
