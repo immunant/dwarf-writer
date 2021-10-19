@@ -91,6 +91,37 @@ impl<'a> EntryRef<'a> {
             {
                 self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
+            if let Some(new_params) = &fn_data.parameters() {
+                // Delete all existing parameters
+                let existing_params: Vec<_> = self
+                    .children()
+                    .filter_map(|&child_id| {
+                        if self.get_unit().get(child_id).tag() == DW_TAG_formal_parameter {
+                            Some(child_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                for param in existing_params {
+                    self.delete_child(param);
+                }
+
+                for param in new_params {
+                    let mut param_entry = self.new_child(DW_TAG_formal_parameter);
+                    if let Some(ref ty) = param.r#type {
+                        let param_ty = DwarfType::from(ty);
+                        let param_ty_id = type_map
+                            .get(&param_ty)
+                            .expect("All types should be in the type map");
+                        param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
+                        param_entry.set(
+                            DW_AT_name,
+                            AttributeValue::String(param.name.as_bytes().to_vec()),
+                        );
+                    }
+                }
+            }
         }
     }
 

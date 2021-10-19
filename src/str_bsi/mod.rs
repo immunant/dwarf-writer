@@ -74,6 +74,20 @@ pub struct Function {
     source_match: Option<SourceMatch>,
 }
 
+impl Function {
+    pub fn parameters(&self) -> Option<Vec<&NamedVariable>> {
+        if let Some(sm) = &self.source_match {
+            if let Some(params) = &sm.parameters {
+                Some(params.values().collect())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SourceMatch {
     confidence: u32,
@@ -116,8 +130,8 @@ pub struct UnnamedVariable {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NamedVariable {
-    name: String,
-    r#type: Option<Type>,
+    pub name: String,
+    pub r#type: Option<Type>,
 }
 
 impl From<&Type> for DwarfType {
