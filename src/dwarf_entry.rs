@@ -111,13 +111,30 @@ impl<'a> EntryRef<'a> {
                     let mut param_entry = self.new_child(DW_TAG_formal_parameter);
                     if let Some(ref ty) = param.r#type {
                         let param_ty = DwarfType::from(ty);
-                        let param_ty_id = type_map
-                            .get(&param_ty)
-                            .expect("All types should be in the type map");
+                        let param_ty_id = type_map.get(&param_ty).unwrap_or_else(|| {
+                            panic!("Parameter type {:?} not found in the type map", param_ty)
+                        });
                         param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
                         param_entry.set(
                             DW_AT_name,
                             AttributeValue::String(param.name.as_bytes().to_vec()),
+                        );
+                    }
+                }
+            }
+
+            if let Some(local_vars) = &fn_data.local_vars() {
+                for var in local_vars {
+                    let mut var_entry = self.new_child(DW_TAG_variable);
+                    if let Some(ref ty) = var.r#type {
+                        let var_ty = DwarfType::from(ty);
+                        let var_ty_id = type_map.get(&var_ty).unwrap_or_else(|| {
+                            panic!("Variable type {:?} not found in the type map", var_ty)
+                        });
+                        var_entry.set(DW_AT_type, AttributeValue::UnitRef(*var_ty_id));
+                        var_entry.set(
+                            DW_AT_name,
+                            AttributeValue::String(var.name.as_bytes().to_vec()),
                         );
                     }
                 }
@@ -162,9 +179,9 @@ impl<'a> EntryRef<'a> {
 
             if let Some(ret_vals) = &fn_data.func.return_values {
                 let ret_type = DwarfType::from(&ret_vals[0].r#type);
-                let ret_type_entry_id = type_map
-                    .get(&ret_type)
-                    .expect("All types should be in the type map");
+                let ret_type_entry_id = type_map.get(&ret_type).unwrap_or_else(|| {
+                    panic!("Return type {:?} not found in the type map", ret_type)
+                });
                 self.set(DW_AT_type, AttributeValue::UnitRef(*ret_type_entry_id));
             }
 
@@ -188,9 +205,9 @@ impl<'a> EntryRef<'a> {
                     let mut param_entry = self.new_child(DW_TAG_formal_parameter);
                     param_entry.set(DW_AT_location, AttributeValue::from(param.location()));
                     let param_ty = DwarfType::from(param.ty());
-                    let param_ty_id = type_map
-                        .get(&param_ty)
-                        .expect("All types should be in the type map");
+                    let param_ty_id = type_map.get(&param_ty).unwrap_or_else(|| {
+                        panic!("Parameter type {:?} not found in the type map", param_ty)
+                    });
                     param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
                     if let Some(param_name) = param.name() {
                         param_entry.set(
@@ -241,9 +258,9 @@ impl<'a> EntryRef<'a> {
 
             // Update variale type
             let var_type = DwarfType::from(&var_data.var.r#type);
-            let var_type_entry_id = type_map
-                .get(&var_type)
-                .expect("All types should be in the type map");
+            let var_type_entry_id = type_map.get(&var_type).unwrap_or_else(|| {
+                panic!("Variable type {:?} not found in the type map", var_type)
+            });
             self.set(DW_AT_type, AttributeValue::UnitRef(*var_type_entry_id));
         }
     }

@@ -86,6 +86,18 @@ impl Function {
             None
         }
     }
+
+    pub fn local_vars(&self) -> Option<Vec<&NamedVariable>> {
+        if let Some(sm) = &self.source_match {
+            if let Some(params) = &sm.local_variables {
+                Some(params.values().collect())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
