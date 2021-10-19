@@ -98,12 +98,23 @@ impl Function {
             None
         }
     }
+
+    pub fn file(&self) -> Option<&str> {
+        self.source_match
+            .as_ref()
+            .map(|sm| sm.file.as_ref().map(|file| file.as_str()))
+            .flatten()
+    }
+
+    pub fn line(&self) -> Option<u64> {
+        self.source_match.as_ref().map(|sm| sm.line).flatten()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SourceMatch {
     confidence: u32,
-    file: String,
+    file: Option<String>,
     line: Option<u64>,
     function: String,
     return_value: UnnamedVariable,

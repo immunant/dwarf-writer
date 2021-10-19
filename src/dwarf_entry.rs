@@ -85,12 +85,23 @@ impl<'a> EntryRef<'a> {
 
         let fn_data = str_data.remove(&start_address);
         if let Some(fn_data) = fn_data {
-            // Update function name
+            // Update function name and source location
             if let Some(name) =
                 self.update_name(fn_data.symbol_name.as_deref(), "FUN_", start_address)
             {
                 self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
+            if let Some(file) = fn_data.file() {
+                self.set(
+                    DW_AT_decl_file,
+                    AttributeValue::String(file.as_bytes().to_vec()),
+                );
+            }
+            if let Some(line) = fn_data.line() {
+                self.set(DW_AT_decl_line, AttributeValue::Data8(line));
+            }
+
+            // Update function parameters
             if let Some(new_params) = &fn_data.parameters() {
                 // Delete all existing parameters
                 let existing_params: Vec<_> = self
@@ -123,6 +134,7 @@ impl<'a> EntryRef<'a> {
                 }
             }
 
+            // Update the function's local variables
             if let Some(local_vars) = &fn_data.local_vars() {
                 for var in local_vars {
                     let mut var_entry = self.new_child(DW_TAG_variable);
