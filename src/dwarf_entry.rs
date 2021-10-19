@@ -1,6 +1,7 @@
 use crate::anvill::{AnvillFnMap, AnvillVarMap};
 use crate::dwarf_attr::*;
 use crate::elf::ELF;
+use crate::str_bsi::StrFnMap;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, DebuggingInformationEntry, Unit, UnitEntryId, UnitId};
@@ -65,17 +66,45 @@ impl<'a> EntryRef<'a> {
         EntryRef::new(self.elf, child_id)
     }
 
-    /// Initializes a newly created subprogram entry.
-    pub fn init_fn(&mut self, addr: u64, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
+    /// Initializes a newly created subprogram entry with STR data.
+    pub fn init_str_fn(&mut self, addr: u64, str_data: &mut StrFnMap, type_map: &TypeMap) {
         self.set(
             DW_AT_low_pc,
             AttributeValue::Address(Address::Constant(addr)),
         );
-        self.update_fn(anvill_data, type_map)
+        self.update_str_fn(str_data, type_map)
     }
 
-    /// Updates an existing function's subprogram entry.
-    pub fn update_fn(&mut self, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
+    /// Updates an existing function's subprogram entry with STR data.
+    pub fn update_str_fn(&mut self, str_data: &mut StrFnMap, type_map: &TypeMap) {
+        // Get function address to see if there's disassembly data for it
+        let low_pc_attr = self
+            .get(DW_AT_low_pc)
+            .expect("No DW_AT_low_pc found in DW_TAG_subprogram entry");
+        let start_address = low_pc_to_u64(low_pc_attr);
+
+        let fn_data = str_data.remove(&start_address);
+        if let Some(fn_data) = fn_data {
+            // Update function name
+            if let Some(name) =
+                self.update_name(fn_data.symbol_name.as_deref(), "FUN_", start_address)
+            {
+                self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
+            }
+        }
+    }
+
+    /// Initializes a newly created subprogram entry with Anvill data.
+    pub fn init_anvill_fn(&mut self, addr: u64, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
+        self.set(
+            DW_AT_low_pc,
+            AttributeValue::Address(Address::Constant(addr)),
+        );
+        self.update_anvill_fn(anvill_data, type_map)
+    }
+
+    /// Updates an existing function's subprogram entry with Anvill data.
+    pub fn update_anvill_fn(&mut self, anvill_data: &mut AnvillFnMap, type_map: &TypeMap) {
         // Get function address to see if there's disassembly data for it
         let low_pc_attr = self
             .get(DW_AT_low_pc)

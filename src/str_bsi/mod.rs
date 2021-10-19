@@ -47,8 +47,10 @@ impl StrBsiInput {
     }
 }
 
+pub type StrFnMap<'a> = HashMap<u64, &'a Function>;
+
 pub struct StrBsiData<'a> {
-    pub fn_map: HashMap<u64, &'a Function>,
+    pub fn_map: StrFnMap<'a>,
     pub types: Vec<DwarfType>,
 }
 
@@ -65,7 +67,7 @@ pub struct StrBsiInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Function {
-    symbol_name: String,
+    pub symbol_name: Option<String>,
     calling_convention: Option<String>,
     return_registers: Vec<Register>,
     clobbered_registers: Vec<Register>,

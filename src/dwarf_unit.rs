@@ -243,7 +243,7 @@ impl<'a> DwarfUnitRef<'a> {
                 },
                 constants::DW_TAG_subprogram => {
                     let mut fn_entry = dwarf.entry_ref(entry_id);
-                    fn_entry.update_fn(&mut fn_map, type_map);
+                    fn_entry.update_anvill_fn(&mut fn_map, type_map);
                 },
                 _ => (),
             }
@@ -253,7 +253,7 @@ impl<'a> DwarfUnitRef<'a> {
         let remaining_fn_addrs: Vec<_> = fn_map.keys().cloned().collect();
         for addr in remaining_fn_addrs {
             let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
-            fn_entry.init_fn(addr, &mut fn_map, type_map);
+            fn_entry.init_anvill_fn(addr, &mut fn_map, type_map);
         }
 
         let remaining_var_addrs: Vec<_> = var_map.keys().cloned().collect();
@@ -267,13 +267,22 @@ impl<'a> DwarfUnitRef<'a> {
     /// Writes the STR BSI data as DWARF debug info and updates the type map
     /// with new type entries.
     pub fn process_str_bsi(&mut self, mut str_bsi: StrBsiData, type_map: &mut TypeMap) {
-        self.update_types(str_bsi.types, type_map);
+        let StrBsiData { types, mut fn_map } = str_bsi;
+        self.update_types(types, type_map);
 
         self.for_each_entry(|dwarf, &entry_id| {
             let entry = dwarf.get(entry_id);
             if let constants::DW_TAG_subprogram = entry.tag() {
                 let mut fn_entry = dwarf.entry_ref(entry_id);
+                fn_entry.update_str_fn(&mut fn_map, type_map);
             };
         });
+
+        let root = self.root();
+        let remaining_fn_addrs: Vec<_> = fn_map.keys().cloned().collect();
+        for addr in remaining_fn_addrs {
+            let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
+            fn_entry.init_str_fn(addr, &mut fn_map, type_map);
+        }
     }
 }
