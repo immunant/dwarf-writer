@@ -43,6 +43,12 @@ struct Opt {
     )]
     str_bsi_paths: Vec<PathBuf>,
     #[structopt(
+        short = "u",
+        long = "use-all-str",
+        help = "Use all entries in STR data regardless of confidence level"
+    )]
+    use_all_str: bool,
+    #[structopt(
         name = "output-dir",
         short = "s",
         long = "section-files",
@@ -106,7 +112,7 @@ fn main() -> Result<()> {
 
     for path in opt.str_bsi_paths {
         let input = StrBsiInput::new(path)?;
-        dwarf.process_str_bsi(input.data(), &mut type_map);
+        dwarf.process_str_bsi(input.data(opt.use_all_str), &mut type_map);
     }
 
     elf.update_binary(opt.output_binary_path, opt.objcopy_path, opt.output_dir)?;

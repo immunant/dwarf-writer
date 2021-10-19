@@ -44,7 +44,7 @@ pub struct VarRef<'a> {
 impl AnvillInput {
     /// Returns a map from addresses to functions, adding its name if it's
     /// provided.
-    pub fn functions(&self) -> AnvillFnMap {
+    fn functions(&self) -> AnvillFnMap {
         let mut res = HashMap::new();
         let funcs = self.functions.as_ref();
         let syms = self.symbols.as_ref();
@@ -60,7 +60,7 @@ impl AnvillInput {
         res
     }
 
-    pub fn variables(&self) -> AnvillVarMap {
+    fn variables(&self) -> AnvillVarMap {
         let mut res = HashMap::new();
         let vars = self.variables.as_ref();
         let syms = self.symbols.as_ref();
@@ -78,7 +78,7 @@ impl AnvillInput {
 
     /// Gets all unique types from variables, function parameters and return
     /// types.
-    pub fn types(&self) -> Vec<&Type> {
+    fn types(&self) -> Vec<&Type> {
         let mut res: Vec<_> = self
             .functions()
             .values()

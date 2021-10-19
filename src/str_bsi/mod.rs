@@ -7,13 +7,13 @@ use std::str::FromStr;
 impl InputFile for StrBsiInput {}
 
 impl StrBsiInput {
-    pub fn data(&self) -> StrBsiData {
+    pub fn data(&self, use_all_entries: bool) -> StrBsiData {
         let fn_map = self
             .functions
             .iter()
             .filter_map(|(addr, f)| {
                 let confidence = f.source_match.as_ref().map(|sm| sm.confidence).unwrap_or(0);
-                if confidence == 0 {
+                if !use_all_entries && confidence != 1 {
                     None
                 } else {
                     let addr = match addr.strip_prefix("0x") {
@@ -25,20 +25,25 @@ impl StrBsiInput {
                 }
             })
             .collect();
-        let dwarf_types = self.types().iter().map(|&t| t.into()).collect();
+        let dwarf_types = self
+            .types(use_all_entries)
+            .iter()
+            .map(|&t| t.into())
+            .collect();
         StrBsiData {
             fn_map,
             types: dwarf_types,
         }
     }
 
-    pub fn types(&self) -> Vec<&Type> {
+    fn types(&self, use_all_entries: bool) -> Vec<&Type> {
         let mut types = Vec::new();
         for (_, func) in &self.functions {
             if let Some(sm) = &func.source_match {
-                if sm.confidence == 1 {
-                    types.append(&mut sm.types());
+                if !use_all_entries && sm.confidence != 1 {
+                    continue
                 }
+                types.append(&mut sm.types());
             }
         }
         types.sort();
