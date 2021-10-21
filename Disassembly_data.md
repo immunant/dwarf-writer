@@ -42,10 +42,13 @@ This tool supports creating or updating DWARF entries for functions and global v
 
 ## STR BSI format
 
-The tool also supports another JSON format with associated probabilities for each function entry.
+The tool also supports another JSON format that matches disassembled functions with their source code and has a probability associated for each match. Currently dwarf-writer defaults to only adding/updating function entries from these inputs if there is no uncertainty about the match (i.e. the `confidence` field equals 1). To write all the info from the input file regardless of the confidence level (for debugging/testing) pass `-u` to `dwarf-writer`.
 
 ```
 $ dwarf-wrter -b $STR_JSON $BINARY
+
+# Write all function entries from $STR_JSON to $BINARY as debug info
+$ dwarf-wrter -u -b $STR_JSON $BINARY
 ```
 
 This data can be used to create or update function entries and the following attributes.
