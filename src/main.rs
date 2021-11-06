@@ -1,9 +1,12 @@
 use crate::anvill::AnvillInput;
 use crate::dwarf_unit::DwarfUnitRef;
 use crate::elf::ELF;
+use crate::ghidra::GhidraInput;
 use crate::str_bsi::StrBsiInput;
 use crate::symbols::Symbols;
 use anyhow::{Error, Result};
+use dwarf_unit::DwarfUnitRef;
+use elf::ELF;
 use serde::Deserialize;
 use simple_log::LogConfigBuilder;
 use std::path::Path;
@@ -16,6 +19,8 @@ mod dwarf_attr;
 mod dwarf_entry;
 mod dwarf_unit;
 mod elf;
+mod functions;
+mod ghidra;
 mod into_gimli;
 mod str_bsi;
 mod symbols;
@@ -44,6 +49,14 @@ pub struct Opt {
         parse(from_os_str)
     )]
     str_bsi_paths: Vec<PathBuf>,
+    #[structopt(
+        name = "ghidra",
+        short = "g",
+        long = "ghidra",
+        help = "Ghidra disassembly data",
+        parse(from_os_str)
+    )]
+    ghidra_paths: Vec<PathBuf>,
     #[structopt(
         short = "u",
         long = "use-all-str",
@@ -120,6 +133,12 @@ fn main() -> Result<()> {
     let mut syms = Symbols::new();
 
     let mut type_map = dwarf.create_type_map();
+
+    for path in opt.ghidra_paths {
+        let input = GhidraInput::new(path)?;
+        let fn_map = input.as_map()?;
+        dwarf.process(fn_map, &mut type_map);
+    }
 
     for path in &opt.anvill_paths {
         let input = AnvillInput::new(path)?;
