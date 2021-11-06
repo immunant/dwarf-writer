@@ -2,6 +2,7 @@ use crate::anvill::AnvillData;
 use crate::dwarf_attr::{attr_to_entry_id, attr_to_u64, name_as_bytes};
 use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
+use crate::functions::FnMap;
 use crate::str_bsi::StrBsiData;
 use crate::types::{CanonicalTypeName, DwarfType, TypeMap};
 use gimli::constants;
@@ -221,6 +222,28 @@ impl<'a> DwarfUnitRef<'a> {
 
                 f(self, &entry_id);
             }
+        }
+    }
+
+    pub fn process(&mut self, mut fn_map: FnMap, type_map: &mut TypeMap) {
+        let mut types: Vec<_> = fn_map.iter().map(|(_, f)| f.types()).flatten().collect();
+        types.sort();
+        types.dedup();
+        self.update_types(types, type_map);
+
+        self.for_each_entry(|dwarf, &entry_id| {
+            let entry = dwarf.get(entry_id);
+            if entry.tag() == constants::DW_TAG_subprogram {
+                let mut fn_entry = dwarf.entry_ref(entry_id);
+                fn_entry.update_fn(&mut fn_map, type_map);
+            }
+        });
+
+        let root = self.root();
+        let remaining_fn_addrs: Vec<_> = fn_map.keys().cloned().collect();
+        for addr in remaining_fn_addrs {
+            let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
+            fn_entry.init_fn(addr, &mut fn_map, type_map);
         }
     }
 

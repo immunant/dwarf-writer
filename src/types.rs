@@ -7,7 +7,8 @@ use std::fmt::Formatter;
 // `CanonicalTypeName`s before being compared for equality.
 pub type TypeName = Vec<u8>;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+// Derive an arbitrary PartialOrd and Ord to allow sorting and deduplicating
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CanonicalTypeName(TypeName);
 
 pub type TypeMap = HashMap<DwarfType, UnitEntryId>;
@@ -21,9 +22,10 @@ impl std::fmt::Debug for CanonicalTypeName {
     }
 }
 
-// This enum directly maps onto the way type information is encoded as DWARF
-// info.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+/// This enum directly maps onto the way type information is encoded as DWARF
+/// info. Derive an arbitrary PartialOrd and Ord to allow sorting and
+/// deduplicating.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DwarfType {
     Primitive {
         name: CanonicalTypeName,
@@ -55,6 +57,7 @@ impl DwarfType {
 
     /// Creates a new primitive type from a canonical type name.
     pub fn new_primitive(name: CanonicalTypeName, size: Option<u64>) -> Self {
+        let size = size.or(name.size());
         DwarfType::Primitive { name, size }
     }
 
@@ -96,6 +99,29 @@ impl DwarfType {
             DwarfType::Struct(_) => DW_TAG_structure_type,
             // TODO: Double check that subroutine_type is correct
             DwarfType::Function { .. } => DW_TAG_subroutine_type,
+        }
+    }
+}
+
+impl CanonicalTypeName {
+    pub fn size(&self) -> Option<u64> {
+        match self.0.as_slice() {
+            b"bool" | b"_Bool" => Some(1),
+            b"int8_t" | b"signed char" | b"i8" => Some(1),
+            b"uint8_t" | b"unsigned char" | b"u8" => Some(1),
+            b"int16_t" | b"short" | b"i16" => Some(2),
+            b"uint16_t" | b"unsigned short" | b"u16" => Some(2),
+            b"int32_t" | b"int" | b"i32" => Some(4),
+            b"uint32_t" | b"unsigned" | b"u32" => Some(4),
+            b"int64_t" | b"long long" | b"i64" => Some(8),
+            b"uint64_t" | b"unsigned long long" | b"u64" => Some(8),
+            b"int128_t" | b"__int128" | b"i128" => Some(16),
+            b"uint128_t" | b"__uint128" | b"u128" => Some(16),
+            b"float16_t" | b"binary16" => Some(2),
+            b"float" | b"f32" => Some(4),
+            b"double" | b"f64" => Some(8),
+            b"void" => Some(0),
+            _ => None,
         }
     }
 }
