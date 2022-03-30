@@ -98,7 +98,10 @@ impl AnvillInput {
 
 impl Function {
     pub fn types(&self) -> Vec<&Type> {
-        let mut res = vec![&self.return_address.r#type];
+        let mut res = Vec::new();
+        if let Some(ret_val) = &self.return_address {
+            res.push(&ret_val.r#type);
+        }
         if let Some(ret_sp) = &self.return_stack_pointer {
             res.push(&ret_sp.r#type);
         }
@@ -166,7 +169,7 @@ pub enum OS {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Function {
     address: u64,
-    pub return_address: Value<TaggedLocation>,
+    pub return_address: Option<Value<TaggedLocation>>,
     return_stack_pointer: Option<Value<UntaggedLocation>>,
     pub parameters: Option<Vec<Arg>>,
     pub return_values: Option<Vec<Value<TaggedLocation>>>,

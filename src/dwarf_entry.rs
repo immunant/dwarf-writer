@@ -178,10 +178,9 @@ impl<'a> EntryRef<'a> {
                 self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
 
-            self.set(
-                DW_AT_return_addr,
-                AttributeValue::from(&fn_data.func.return_address.location),
-            );
+            if let Some(ret_addr) = &fn_data.func.return_address {
+                self.set(DW_AT_return_addr, AttributeValue::from(&ret_addr.location));
+            }
 
             if let Some(no_ret) = fn_data.func.is_noreturn {
                 self.set(DW_AT_noreturn, AttributeValue::Flag(no_ret));
@@ -190,11 +189,13 @@ impl<'a> EntryRef<'a> {
             self.set(DW_AT_prototyped, AttributeValue::Flag(true));
 
             if let Some(ret_vals) = &fn_data.func.return_values {
-                let ret_type = DwarfType::from(&ret_vals[0].r#type);
-                let ret_type_entry_id = type_map.get(&ret_type).unwrap_or_else(|| {
-                    panic!("Return type {:?} not found in the type map", ret_type)
-                });
-                self.set(DW_AT_type, AttributeValue::UnitRef(*ret_type_entry_id));
+                if let Some(ret) = ret_vals.get(0) {
+                    let ret_type = DwarfType::from(&ret.r#type);
+                    let ret_type_entry_id = type_map.get(&ret_type).unwrap_or_else(|| {
+                        panic!("Return type {:?} not found in the type map", ret_type)
+                    });
+                    self.set(DW_AT_type, AttributeValue::UnitRef(*ret_type_entry_id));
+                }
             }
 
             if let Some(new_params) = &fn_data.func.parameters {
