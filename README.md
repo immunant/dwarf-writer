@@ -34,10 +34,12 @@ USAGE:
     dwarf-writer [FLAGS] [OPTIONS] <input> [--] [output]
 
 FLAGS:
-    -h, --help           Prints help information
-    -u, --use-all-str    Use all entries in STR data regardless of confidence level
-    -V, --version        Prints version information
-    -v, --verbose        
+    -h, --help              Prints help information
+        --omit-functions    Avoid emitting DW_TAG_subprogram entries
+        --omit-variables    Avoid emitting DW_TAG_variable entries for Anvill
+    -u, --use-all-str       Use all entries in STR data regardless of confidence level
+    -V, --version           Prints version information
+    -v, --verbose
 
 OPTIONS:
     -a, --anvill <anvill-data>...       Anvill disassembly data
