@@ -124,8 +124,8 @@ impl Arg {
         self.name.as_deref()
     }
 
-    pub fn location(&self) -> &TaggedLocation {
-        &self.value.location
+    pub fn location(&self) -> Option<&TaggedLocation> {
+        self.value.location.as_ref()
     }
 
     pub fn ty(&self) -> &Type {
@@ -208,7 +208,7 @@ pub struct Arg {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Value<T: ValueLocation> {
     #[serde(flatten)]
-    pub location: T,
+    pub location: Option<T>,
     pub r#type: Type,
 }
 
@@ -449,22 +449,8 @@ pub enum ARMRegister {
     S30,
     S31,
 
-    Q0,
-    Q1,
-    Q2,
-    Q3,
-    Q4,
-    Q5,
-    Q6,
-    Q7,
-    Q8,
-    Q9,
-    Q10,
-    Q11,
-    Q12,
-    Q13,
-    Q14,
-    Q15,
+    // TODO: Add Q0-Q15. This requires refactoring the IntoGimli impl for
+    // anvill::Register since Q0 is D0+D1, etc.
 }
 
 // TODO: Fill this in. Set variant values to the DWARF register number since

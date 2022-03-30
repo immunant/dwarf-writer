@@ -179,7 +179,9 @@ impl<'a> EntryRef<'a> {
             }
 
             if let Some(ret_addr) = &fn_data.func.return_address {
-                self.set(DW_AT_return_addr, AttributeValue::from(&ret_addr.location));
+                if let Some(loc) = &ret_addr.location {
+                    self.set(DW_AT_return_addr, AttributeValue::from(loc));
+                }
             }
 
             if let Some(no_ret) = fn_data.func.is_noreturn {
@@ -216,7 +218,9 @@ impl<'a> EntryRef<'a> {
 
                 for param in new_params {
                     let mut param_entry = self.new_child(DW_TAG_formal_parameter);
-                    param_entry.set(DW_AT_location, AttributeValue::from(param.location()));
+                    if let Some(loc) = param.location() {
+                        param_entry.set(DW_AT_location, AttributeValue::from(loc));
+                    }
                     let param_ty = DwarfType::from(param.ty());
                     let param_ty_id = type_map.get(&param_ty).unwrap_or_else(|| {
                         panic!("Parameter type {:?} not found in the type map", param_ty)
