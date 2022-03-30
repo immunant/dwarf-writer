@@ -67,13 +67,13 @@ pub struct Opt {
     #[structopt(
         name = "omit-variables",
         long = "omit-variables",
-        help = "Avoid emitting DW_TAG_variable entries for Anvill",
+        help = "Avoid emitting DW_TAG_variable entries for Anvill"
     )]
     omit_variables: bool,
     #[structopt(
         name = "omit-functions",
         long = "omit-functions",
-        help = "Avoid emitting DW_TAG_subprogram entries for Anvill",
+        help = "Avoid emitting DW_TAG_subprogram entries"
     )]
     omit_functions: bool,
     #[structopt(short = "v", long = "verbose")]
@@ -122,9 +122,9 @@ fn main() -> Result<()> {
         dwarf.process_anvill(input.data(&opt), &mut type_map);
     }
 
-    for path in opt.str_bsi_paths {
+    for path in &opt.str_bsi_paths {
         let input = StrBsiInput::new(path)?;
-        dwarf.process_str_bsi(input.data(opt.use_all_str), &mut type_map);
+        dwarf.process_str_bsi(input.data(&opt), &mut type_map);
     }
 
     elf.update_binary(opt.output_binary_path, opt.objcopy_path, opt.output_dir)?;

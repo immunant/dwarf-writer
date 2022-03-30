@@ -1,5 +1,6 @@
 use crate::types::{CanonicalTypeName, DwarfType};
 use crate::InputFile;
+use crate::Opt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -7,24 +8,28 @@ use std::str::FromStr;
 impl InputFile for StrBsiInput {}
 
 impl StrBsiInput {
-    pub fn data(&self, use_all_entries: bool) -> StrBsiData {
-        let fn_map = self
-            .functions
-            .iter()
-            .filter_map(|(addr, f)| {
-                let confidence = f.source_match.as_ref().map(|sm| sm.confidence).unwrap_or(0);
-                if !use_all_entries && confidence != 1 {
-                    None
-                } else {
-                    let addr = match addr.strip_prefix("0x") {
-                        Some(hex_addr) => u64::from_str_radix(hex_addr, 16),
-                        None => u64::from_str(addr),
+    pub fn data(&self, cfg: &Opt) -> StrBsiData {
+        let use_all_entries = cfg.use_all_str;
+        let fn_map = if cfg.omit_functions {
+            HashMap::new()
+        } else {
+            self.functions
+                .iter()
+                .filter_map(|(addr, f)| {
+                    let confidence = f.source_match.as_ref().map(|sm| sm.confidence).unwrap_or(0);
+                    if !use_all_entries && confidence != 1 {
+                        None
+                    } else {
+                        let addr = match addr.strip_prefix("0x") {
+                            Some(hex_addr) => u64::from_str_radix(hex_addr, 16),
+                            None => u64::from_str(addr),
+                        }
+                        .unwrap_or_else(|_| panic!("Unable to parse {} into a u64", addr));
+                        Some((addr, f))
                     }
-                    .unwrap_or_else(|_| panic!("Unable to parse {} into a u64", addr));
-                    Some((addr, f))
-                }
-            })
-            .collect();
+                })
+                .collect()
+        };
         let dwarf_types = self
             .types(use_all_entries)
             .iter()

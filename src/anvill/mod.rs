@@ -1,8 +1,8 @@
 #![allow(non_camel_case_types)]
 #![allow(clippy::upper_case_acronyms)]
-use crate::Opt;
 use crate::types::DwarfType;
 use crate::InputFile;
+use crate::Opt;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashMap;
@@ -459,7 +459,6 @@ pub enum ARMRegister {
     S29,
     S30,
     S31,
-
     // TODO: Add Q0-Q15. This requires refactoring the IntoGimli impl for
     // anvill::Register since Q0 is D0+D1, etc.
 }
