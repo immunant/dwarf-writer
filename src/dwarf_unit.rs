@@ -226,7 +226,7 @@ impl<'a> DwarfUnitRef<'a> {
 
     /// Writes the anvill data as DWARF debug info and updates the type map with
     /// new type entries.
-    pub fn process_anvill(&mut self, mut anvill: AnvillData, type_map: &mut TypeMap) {
+    pub fn process_anvill(&mut self, anvill: AnvillData, type_map: &mut TypeMap) {
         let AnvillData {
             types,
             mut var_map,
@@ -266,7 +266,7 @@ impl<'a> DwarfUnitRef<'a> {
 
     /// Writes the STR BSI data as DWARF debug info and updates the type map
     /// with new type entries.
-    pub fn process_str_bsi(&mut self, mut str_bsi: StrBsiData, type_map: &mut TypeMap) {
+    pub fn process_str_bsi(&mut self, str_bsi: StrBsiData, type_map: &mut TypeMap) {
         let StrBsiData { types, mut fn_map } = str_bsi;
         self.update_types(types, type_map);
 
