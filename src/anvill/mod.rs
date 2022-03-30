@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 #![allow(clippy::upper_case_acronyms)]
+use crate::Opt;
 use crate::types::DwarfType;
 use crate::InputFile;
 use serde::{Deserialize, Serialize};
@@ -12,10 +13,20 @@ impl InputFile for AnvillInput {}
 
 impl AnvillInput {
     /// Anvill data in a format suitable for writing as DWARF debug info.
-    pub fn data(&self) -> AnvillData {
+    pub fn data(&self, cfg: &Opt) -> AnvillData {
+        let var_map = if cfg.omit_variables {
+            HashMap::new()
+        } else {
+            self.variables()
+        };
+        let fn_map = if cfg.omit_functions {
+            HashMap::new()
+        } else {
+            self.functions()
+        };
         AnvillData {
-            fn_map: self.functions(),
-            var_map: self.variables(),
+            fn_map,
+            var_map,
             types: self.types().iter().map(|&t| t.into()).collect(),
         }
     }

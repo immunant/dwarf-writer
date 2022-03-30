@@ -21,7 +21,7 @@ mod types;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "dwarf-writer")]
-struct Opt {
+pub struct Opt {
     #[structopt(name = "input", help = "Input binary", parse(from_os_str))]
     input_binary_path: PathBuf,
     #[structopt(name = "output", help = "Output binary", parse(from_os_str))]
@@ -64,6 +64,18 @@ struct Opt {
         parse(from_os_str)
     )]
     objcopy_path: Option<PathBuf>,
+    #[structopt(
+        name = "omit-variables",
+        long = "omit-variables",
+        help = "Avoid emitting DW_TAG_variable entries for Anvill",
+    )]
+    omit_variables: bool,
+    #[structopt(
+        name = "omit-functions",
+        long = "omit-functions",
+        help = "Avoid emitting DW_TAG_subprogram entries for Anvill",
+    )]
+    omit_functions: bool,
     #[structopt(short = "v", long = "verbose")]
     verbose: bool,
     // Has precedence over `verbose` flag
@@ -105,9 +117,9 @@ fn main() -> Result<()> {
 
     let mut type_map = dwarf.create_type_map();
 
-    for path in opt.anvill_paths {
+    for path in &opt.anvill_paths {
         let input = AnvillInput::new(path)?;
-        dwarf.process_anvill(input.data(), &mut type_map);
+        dwarf.process_anvill(input.data(&opt), &mut type_map);
     }
 
     for path in opt.str_bsi_paths {
