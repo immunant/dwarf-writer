@@ -1,13 +1,14 @@
-use anvill::AnvillInput;
+use crate::anvill::AnvillInput;
+use crate::dwarf_unit::DwarfUnitRef;
+use crate::elf::ELF;
+use crate::str_bsi::StrBsiInput;
+use crate::symbols::Symbols;
 use anyhow::{Error, Result};
-use dwarf_unit::DwarfUnitRef;
-use elf::ELF;
 use serde::Deserialize;
 use simple_log::LogConfigBuilder;
 use std::path::Path;
 use std::path::PathBuf;
 use std::{fs, io};
-use str_bsi::StrBsiInput;
 use structopt::StructOpt;
 
 mod anvill;
@@ -17,6 +18,7 @@ mod dwarf_unit;
 mod elf;
 mod into_gimli;
 mod str_bsi;
+mod symbols;
 mod types;
 
 #[derive(StructOpt, Debug)]
@@ -115,11 +117,14 @@ fn main() -> Result<()> {
 
     let mut dwarf = DwarfUnitRef::new(&mut elf);
 
+    let mut syms = Symbols::new();
+
     let mut type_map = dwarf.create_type_map();
 
     for path in &opt.anvill_paths {
         let input = AnvillInput::new(path)?;
         dwarf.process_anvill(input.data(&opt), &mut type_map);
+        syms.add_anvill(input.data(&opt));
     }
 
     for path in &opt.str_bsi_paths {
@@ -127,7 +132,12 @@ fn main() -> Result<()> {
         dwarf.process_str_bsi(input.data(&opt), &mut type_map);
     }
 
-    elf.update_binary(opt.output_binary_path, opt.objcopy_path, opt.output_dir)?;
+    elf.update_binary(
+        opt.output_binary_path,
+        opt.objcopy_path,
+        opt.output_dir,
+        syms,
+    )?;
 
     Ok(())
 }

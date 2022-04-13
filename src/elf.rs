@@ -1,4 +1,5 @@
 use crate::into_gimli::IntoGimli;
+use crate::symbols::Symbols;
 use anyhow::Result;
 use gimli::read;
 use gimli::write::{Address, Dwarf, EndianVec, Sections};
@@ -72,7 +73,7 @@ impl ELF {
 
     pub fn update_binary(
         mut self, output_path: Option<PathBuf>, objcopy_path: Option<PathBuf>,
-        output_dir: Option<PathBuf>,
+        output_dir: Option<PathBuf>, syms: Symbols,
     ) -> Result<()> {
         let temp_dir = tempdir()?;
         let dir = match output_dir {
@@ -89,6 +90,22 @@ impl ELF {
         };
         let objcopy = &objcopy_path.unwrap_or_else(|| "objcopy".into());
 
+        // Update symbols
+        let mut cmd = Command::new(objcopy);
+        for s in syms.0 {
+            cmd.arg("--add-symbol").arg(s.objcopy_cmd());
+        }
+        let output = cmd.arg(output_path.as_path()).output()?;
+        let stdout = std::str::from_utf8(&output.stdout)?;
+        let stderr = std::str::from_utf8(&output.stderr)?;
+        if !stdout.is_empty() {
+            warn!("{}", stdout);
+        }
+        if !stderr.is_empty() {
+            warn!("{}", stderr);
+        }
+
+        // Update DWARF info
         let updated_sections = &self.sections()?;
 
         updated_sections.for_each(|section, data| {
