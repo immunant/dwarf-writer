@@ -28,29 +28,29 @@ $ cargo install --path .
 
 ```
 $ dwarf-writer -h
-dwarf-writer 0.1.0
 
 USAGE:
-    dwarf-writer [FLAGS] [OPTIONS] <input> [--] [output]
-
-FLAGS:
-    -h, --help              Prints help information
-        --omit-functions    Avoid emitting DW_TAG_subprogram entries
-        --omit-variables    Avoid emitting DW_TAG_variable entries for Anvill
-    -u, --use-all-str       Use all entries in STR data regardless of confidence level
-    -V, --version           Prints version information
-    -v, --verbose
-
-OPTIONS:
-    -a, --anvill <anvill-data>...       Anvill disassembly data
-    -l, --logging <level>               Set logging level explicitly
-    -x, --objcopy <objcopy-path>        Alternate objcopy to use (defaults to objcopy in PATH)
-    -s, --section-files <output-dir>    Output directory for writing DWARF sections to individual files
-    -b, --str-bsi <str-data>...         STR BSI disassembly data
+    dwarf-writer [OPTIONS] <input> [output]
 
 ARGS:
     <input>     Input binary
     <output>    Output binary
+
+OPTIONS:
+    -a, --anvill <anvill-data>          Anvill disassembly data
+    -b, --str-bsi <str-data>            STR BSI disassembly data
+    -g, --ghidra <ghidra>               Ghidra disassembly data
+    -h, --help                          Print help information
+    -l, --logging <level>               Set logging level explicitly
+        --omit-functions                Avoid emitting DW_TAG_subprogram entries
+        --omit-symbols                  Avoid adding ELF symbols
+        --omit-variables                Avoid emitting DW_TAG_variable entries for Anvill
+    -s, --section-files <output-dir>    Output directory for writing DWARF sections to individual
+                                        files
+    -u, --use-all-str                   Use all entries in STR data regardless of confidence level
+    -v, --verbose                       
+    -x, --objcopy <objcopy-path>        Alternate objcopy to use (defaults to objcopy in PATH)
+
 
 # To update the program's debug info in-place using the objcopy in PATH
 $ dwarf-writer -a $ANVILL_JSON -b $STR_JSON $BINARY

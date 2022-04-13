@@ -1,7 +1,7 @@
 use crate::anvill::{AnvillFnMap, AnvillVarMap};
 use crate::dwarf_attr::*;
 use crate::elf::ELF;
-use crate::functions::{FnMap, Provided};
+use crate::ghidra::GhidraData;
 use crate::str_bsi::StrFnMap;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
@@ -67,69 +67,65 @@ impl<'a> EntryRef<'a> {
         EntryRef::new(self.elf, child_id)
     }
 
-    pub fn init_fn(&mut self, addr: u64, data: &mut FnMap, type_map: &TypeMap) {
+    pub fn init_ghidra_fn(&mut self, addr: u64, ghidra_data: &mut GhidraData, type_map: &TypeMap) {
         self.set(
             DW_AT_low_pc,
             AttributeValue::Address(Address::Constant(addr)),
         );
-        self.update_fn(data, type_map)
+        self.update_ghidra_fn(ghidra_data, type_map)
     }
 
-    pub fn update_fn(&mut self, data: &mut FnMap, type_map: &TypeMap) {
+    pub fn update_ghidra_fn(&mut self, ghidra_data: &mut GhidraData, type_map: &TypeMap) {
         let low_pc_attr = self
             .get(DW_AT_low_pc)
             .expect("No DW_AT_low_pc found in DW_TAG_subprogram entry");
         let start_address = low_pc_to_u64(low_pc_attr);
 
-        let fn_data = data.remove(&start_address);
+        let fn_data = ghidra_data.fn_map.remove(&start_address);
         if let Some(fn_data) = fn_data {
-            if let Provided::Value(hi_pc) = fn_data.hi_pc {
-                self.set(DW_AT_high_pc, AttributeValue::Data8(hi_pc));
-            }
+            self.set(DW_AT_high_pc, AttributeValue::Data8(fn_data.high_pc));
+
             if let Some(name) = self.update_name(Option::from(fn_data.name), "FUN_", start_address)
             {
                 self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
-            if let Provided::Value(file) = fn_data.file {
-                self.set(
-                    DW_AT_decl_file,
-                    AttributeValue::String(file.as_bytes().to_vec()),
+
+            if let Some(ret_ty) = &fn_data.return_ty {
+                let ret_type_entry_id = type_map.get(&ret_ty).unwrap_or_else(|| {
+                    panic!("Return type {:?} not found in the type map", ret_ty)
+                });
+                self.set(DW_AT_type, AttributeValue::UnitRef(*ret_type_entry_id));
+            }
+
+            let existing_params: Vec<_> = self
+                .children()
+                .filter_map(|&child_id| {
+                    if self.get_unit().get(child_id).tag() == DW_TAG_formal_parameter {
+                        Some(child_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            for param in existing_params {
+                self.delete_child(param);
+            }
+
+            for param in fn_data.parameters {
+                let mut param_entry = self.new_child(DW_TAG_formal_parameter);
+                if let Some(param_ty) = &param.ty {
+                    let param_ty_id = type_map.get(&param_ty).unwrap_or_else(|| {
+                        panic!("Parameter type {:?} not found in the type map", param_ty)
+                    });
+                    param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
+                }
+                param_entry.set(
+                    DW_AT_name,
+                    AttributeValue::String(param.name.as_bytes().to_vec()),
                 );
             }
-            if let Provided::Value(line) = fn_data.line {
-                self.set(DW_AT_decl_line, AttributeValue::Data8(line));
-            }
-
-            if let Provided::Value(new_params) = fn_data.parameters {
-                let existing_params: Vec<_> = self
-                    .children()
-                    .filter_map(|&child_id| {
-                        if self.get_unit().get(child_id).tag() == DW_TAG_formal_parameter {
-                            Some(child_id)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                for param in existing_params {
-                    self.delete_child(param);
-                }
-
-                for param in new_params {
-                    let mut param_entry = self.new_child(DW_TAG_formal_parameter);
-                    if let Provided::Value(param_ty) = param.ty {
-                        let param_ty_id = type_map.get(&param_ty).unwrap_or_else(|| {
-                            panic!("Parameter type {:?} not found in the type map", param_ty)
-                        });
-                        param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
-                        if let Provided::Value(name) = param.name {
-                            param_entry
-                                .set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
-                        }
-                    }
-                }
-            }
-        };
+        }
     }
 
     /// Initializes a newly created subprogram entry with STR data.

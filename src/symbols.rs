@@ -1,4 +1,5 @@
 use crate::anvill::AnvillData;
+use crate::ghidra::GhidraData;
 
 pub enum SymbolFlag {
     Function,
@@ -29,7 +30,17 @@ impl Symbols {
         Self(Vec::new())
     }
 
-    pub fn add_anvill(&mut self, anvill_data: AnvillData) {
+    pub fn add_ghidra(&mut self, ghidra_data: &GhidraData) {
+        for (&addr, func) in &ghidra_data.fn_map {
+            self.0.push(Symbol {
+                name: func.name.to_string(),
+                value: addr,
+                flags: SymbolFlag::Function,
+            });
+        }
+    }
+
+    pub fn add_anvill(&mut self, anvill_data: &AnvillData) {
         for (&addr, var) in &anvill_data.var_map {
             if let Some(name) = var.name {
                 self.0.push(Symbol {

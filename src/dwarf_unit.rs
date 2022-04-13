@@ -2,7 +2,7 @@ use crate::anvill::AnvillData;
 use crate::dwarf_attr::{attr_to_entry_id, attr_to_u64, name_as_bytes};
 use crate::dwarf_entry::EntryRef;
 use crate::elf::ELF;
-use crate::functions::FnMap;
+use crate::ghidra::GhidraData;
 use crate::str_bsi::StrBsiData;
 use crate::types::{CanonicalTypeName, DwarfType, TypeMap};
 use gimli::constants;
@@ -194,10 +194,14 @@ impl<'a> DwarfUnitRef<'a> {
         type_map
     }
 
+    /// Update the map from `DwarfType`s to DWARF entry IDs.
     fn update_types(&mut self, types: Vec<DwarfType>, type_map: &mut TypeMap) {
         trace!("Processing anvill types");
         for ty in types {
             if !type_map.contains_key(&ty) {
+                // TypeMap::new initializes the map with existing DWARF debug
+                // info. After that if a type isn't in the map we have to create
+                // a DWARF entry for it.
                 let mut ty_entry = self.new_entry(self.root(), ty.tag());
                 ty_entry.init_type(&ty, type_map);
 
@@ -225,8 +229,8 @@ impl<'a> DwarfUnitRef<'a> {
         }
     }
 
-    pub fn process(&mut self, mut fn_map: FnMap, type_map: &mut TypeMap) {
-        let mut types: Vec<_> = fn_map.iter().map(|(_, f)| f.types()).flatten().collect();
+    pub fn process_ghidra(&mut self, mut ghidra_data: GhidraData, type_map: &mut TypeMap) {
+        let mut types: Vec<_> = ghidra_data.types();
         types.sort();
         types.dedup();
         self.update_types(types, type_map);
@@ -235,15 +239,15 @@ impl<'a> DwarfUnitRef<'a> {
             let entry = dwarf.get(entry_id);
             if entry.tag() == constants::DW_TAG_subprogram {
                 let mut fn_entry = dwarf.entry_ref(entry_id);
-                fn_entry.update_fn(&mut fn_map, type_map);
+                fn_entry.update_ghidra_fn(&mut ghidra_data, type_map);
             }
         });
 
         let root = self.root();
-        let remaining_fn_addrs: Vec<_> = fn_map.keys().cloned().collect();
+        let remaining_fn_addrs: Vec<_> = ghidra_data.fn_map.keys().cloned().collect();
         for addr in remaining_fn_addrs {
             let mut fn_entry = self.new_entry(root, DW_TAG_subprogram);
-            fn_entry.init_fn(addr, &mut fn_map, type_map);
+            fn_entry.init_ghidra_fn(addr, &mut ghidra_data, type_map);
         }
     }
 

@@ -17,7 +17,6 @@ mod dwarf_attr;
 mod dwarf_entry;
 mod dwarf_unit;
 mod elf;
-mod functions;
 mod ghidra;
 mod into_gimli;
 mod str_bsi;
@@ -89,6 +88,8 @@ pub struct Opt {
         help = "Avoid emitting DW_TAG_subprogram entries"
     )]
     omit_functions: bool,
+    #[clap(long = "omit-symbols", help = "Avoid adding ELF symbols")]
+    omit_symbols: bool,
     #[clap(short = 'v', long = "verbose")]
     verbose: bool,
     // Has precedence over `verbose` flag
@@ -134,14 +135,20 @@ fn main() -> Result<()> {
 
     for path in &opt.ghidra_paths {
         let input = GhidraInput::new(path)?;
-        let fn_map = input.as_map()?;
-        dwarf.process(fn_map, &mut type_map);
+        let ghidra_data = input.data()?;
+        if !opt.omit_symbols {
+            syms.add_ghidra(&ghidra_data);
+        }
+        dwarf.process_ghidra(ghidra_data, &mut type_map);
     }
 
     for path in &opt.anvill_paths {
         let input = AnvillInput::new(path)?;
-        dwarf.process_anvill(input.data(&opt), &mut type_map);
-        syms.add_anvill(input.data(&opt));
+        let anvill_data = input.data(&opt);
+        if !opt.omit_symbols {
+            syms.add_anvill(&anvill_data);
+        }
+        dwarf.process_anvill(anvill_data, &mut type_map);
     }
 
     for path in &opt.str_bsi_paths {

@@ -1,4 +1,3 @@
-use crate::functions::{DwarfFunction, FnMap, Parameter, Provided};
 use crate::types::{CanonicalTypeName, DwarfType};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -19,34 +18,36 @@ impl GhidraInput {
         Ok(GhidraInput { functions })
     }
 
-    pub fn as_map(&self) -> Result<FnMap> {
-        let mut res = HashMap::with_capacity(self.functions.len());
+    pub fn data(&self) -> Result<GhidraData> {
+        let mut fn_map = HashMap::new();
         for f in &self.functions {
             let low_pc = u64::from_str_radix(&f.location, 16)?;
-            let hi_pc = u64::from_str_radix(&f.size, 16)? + low_pc;
-            let (return_values, parameters) = Self::parse_signature(&f.signature);
-            let dwarf_function = DwarfFunction {
-                name: Provided::Value(&f.name),
-                hi_pc: Provided::Value(hi_pc),
-                return_values,
-                parameters,
-                ..Default::default()
-            };
-            res.insert(low_pc, dwarf_function);
+            let high_pc = u64::from_str_radix(&f.size, 16)? + low_pc;
+            let (return_ty, parameters) = Self::parse_signature(&f.signature);
+            fn_map.insert(
+                low_pc,
+                Function {
+                    low_pc,
+                    high_pc,
+                    return_ty,
+                    parameters,
+                    name: &f.name,
+                },
+            );
         }
-        Ok(res)
+        Ok(GhidraData { fn_map })
     }
 
     /// Returns a tuple of (return_types, parameters). Ghidra currently only
     /// provides a single return value, but it's inserted into a vector to
     /// simplify the transformation to a `DwarfFunction`.
-    fn parse_signature(fn_sig: &str) -> (Provided<Vec<DwarfType>>, Provided<Vec<Parameter>>) {
+    fn parse_signature(fn_sig: &str) -> (Option<DwarfType>, Vec<Parameter>) {
         let mut sig_iter = fn_sig.split("(");
         let left_str = sig_iter.next().unwrap();
         let right_str = sig_iter.next().unwrap();
 
         let mut left_iter = left_str.rsplit(' ');
-        let fn_name_str = left_iter.next().unwrap();
+        let _fn_name = left_iter.next().unwrap();
         let ret_str = left_iter.rfold(String::new(), |mut acc, s| {
             acc.push(' ');
             acc.push_str(s);
@@ -59,7 +60,7 @@ impl GhidraInput {
                 break
             } else {
                 let mut param_iter = p.rsplit(' ');
-                let name = Provided::Value(param_iter.next().unwrap());
+                let name = param_iter.next().unwrap();
                 let ty_name = param_iter.rfold(String::new(), |mut acc, s| {
                     acc.push(' ');
                     acc.push_str(s);
@@ -67,41 +68,72 @@ impl GhidraInput {
                 });
                 let param = Parameter {
                     name,
-                    location: Provided::Unavailable,
-                    ty: Provided::Value(Self::parse_type(&ty_name)),
+                    ty: Self::parse_type(&ty_name),
                 };
                 params.push(param);
             }
         }
-        let params_provided = if params.len() == 0 {
-            Provided::Nothing
-        } else {
-            Provided::Value(params)
-        };
         let ret_ty = Self::parse_type(&ret_str);
-        let ret = Provided::Value(vec![ret_ty]);
-        (ret, params_provided)
+        (ret_ty, params)
     }
 
-    fn parse_type(ty: &str) -> DwarfType {
-        let ty = ty.trim_end();
-        match ty.strip_suffix("*") {
-            Some(inner_ty) => DwarfType::new_pointer(Self::parse_type(inner_ty)),
+    fn parse_type(ty: &str) -> Option<DwarfType> {
+        let ty = ty.trim_end().trim_start();
+        if ty == "undefined" || ty == "thunk undefined" {
+            return None
+        };
+        let res = match ty.strip_suffix("*") {
+            Some(inner_ty) => DwarfType::new_pointer(Self::parse_type(inner_ty).unwrap()),
             None => DwarfType::new_primitive(
                 CanonicalTypeName::from(ty.trim_start().as_bytes().to_vec()),
                 None,
             ),
-        }
+        };
+        Some(res)
     }
+}
+
+pub struct GhidraData<'a> {
+    pub fn_map: HashMap<u64, Function<'a>>,
+}
+
+impl<'a> GhidraData<'a> {
+    pub fn types(&self) -> Vec<DwarfType> {
+        let mut res = Vec::new();
+        for function in self.fn_map.values() {
+            for param in &function.parameters {
+                if let Some(param_ty) = &param.ty {
+                    res.push(param_ty.clone());
+                }
+            }
+            if let Some(ret_ty) = &function.return_ty {
+                res.push(ret_ty.clone());
+            }
+        }
+        res
+    }
+}
+
+pub struct Function<'a> {
+    pub low_pc: u64,
+    pub high_pc: u64,
+    pub name: &'a str,
+    pub return_ty: Option<DwarfType>,
+    pub parameters: Vec<Parameter<'a>>,
+}
+
+pub struct Parameter<'a> {
+    pub name: &'a str,
+    pub ty: Option<DwarfType>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GhidraInput {
-    functions: Vec<Function>,
+    functions: Vec<FunctionInput>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Function {
+struct FunctionInput {
     #[serde(rename = "Name")]
     name: String,
     #[serde(rename = "Function Size")]

@@ -22,7 +22,7 @@ $ dwarf-wrter -a $OUTPUT_JSON $BINARY
 
 ### Capabilities
 
-This tool supports creating or updating DWARF entries for functions and global variables with this data. Only the following attributes are currently supported.
+This tool supports creating and updating DWARF entries for functions and global variables with this data. Only the following attributes are currently supported.
 
 - DW_TAG_variable (global variables)
     - DW_AT_location
@@ -39,6 +39,8 @@ This tool supports creating or updating DWARF entries for functions and global v
         - DW_AT_location
         - DW_AT_name
         - DW_AT_type
+
+There is also experimental support for adding symbols for functions and variables with names. Symbols are not added for functions and variables with auto-generated names (i.e. `FUN_$ADDRESS`, `VAR_$ADDRESS`). There is currently no support for updating existing symbols or specifying symbol sections (defaults to ABS).
 
 ## STR BSI format
 
@@ -65,3 +67,22 @@ This data can be used to create or update function entries and the following att
         - DW_AT_location
         - DW_AT_name
         - DW_AT_type
+
+## Ghidra functions
+
+Ghidra can export a csv file with info on all functions. To do this go to `Window -> Functions -> select all functions and right click -> Export -> Export to CSV...`. Dwarf-writer can create and update DWARF entries for functions from this data. The following attributes are currently supported.
+
+```
+$ dwarf-writer -g $GHIDRA_CSV $BINARY
+```
+
+- DW_TAG_subprogram (functions)
+    - DW_AT_low_pc
+    - DW_AT_high_pc
+    - DW_AT_name
+    - DW_AT_type
+    - DW_TAG_formal_parameter (arguments)
+        - DW_AT_name
+        - DW_AT_type
+
+There is also experimental support for adding symbols for functions. There is currently no support for updating existing symbols or specifying symbol sections (defaults to ABS).
