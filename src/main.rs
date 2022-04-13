@@ -5,14 +5,12 @@ use crate::ghidra::GhidraInput;
 use crate::str_bsi::StrBsiInput;
 use crate::symbols::Symbols;
 use anyhow::{Error, Result};
-use dwarf_unit::DwarfUnitRef;
-use elf::ELF;
+use clap::Parser;
 use serde::Deserialize;
 use simple_log::LogConfigBuilder;
 use std::path::Path;
 use std::path::PathBuf;
 use std::{fs, io};
-use structopt::StructOpt;
 
 mod anvill;
 mod dwarf_attr;
@@ -26,77 +24,77 @@ mod str_bsi;
 mod symbols;
 mod types;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "dwarf-writer")]
+#[derive(Parser, Debug)]
+#[clap(name = "dwarf-writer")]
 pub struct Opt {
-    #[structopt(name = "input", help = "Input binary", parse(from_os_str))]
+    #[clap(name = "input", help = "Input binary", parse(from_os_str))]
     input_binary_path: PathBuf,
-    #[structopt(name = "output", help = "Output binary", parse(from_os_str))]
+    #[clap(name = "output", help = "Output binary", parse(from_os_str))]
     output_binary_path: Option<PathBuf>,
-    #[structopt(
+    #[clap(
         name = "anvill-data",
-        short = "a",
+        short = 'a',
         long = "anvill",
         help = "Anvill disassembly data",
         parse(from_os_str)
     )]
     anvill_paths: Vec<PathBuf>,
-    #[structopt(
+    #[clap(
         name = "str-data",
-        short = "b",
+        short = 'b',
         long = "str-bsi",
         help = "STR BSI disassembly data",
         parse(from_os_str)
     )]
     str_bsi_paths: Vec<PathBuf>,
-    #[structopt(
+    #[clap(
         name = "ghidra",
-        short = "g",
+        short = 'g',
         long = "ghidra",
         help = "Ghidra disassembly data",
         parse(from_os_str)
     )]
     ghidra_paths: Vec<PathBuf>,
-    #[structopt(
-        short = "u",
+    #[clap(
+        short = 'u',
         long = "use-all-str",
         help = "Use all entries in STR data regardless of confidence level"
     )]
     use_all_str: bool,
-    #[structopt(
+    #[clap(
         name = "output-dir",
-        short = "s",
+        short = 's',
         long = "section-files",
         help = "Output directory for writing DWARF sections to individual files",
         parse(from_os_str)
     )]
     output_dir: Option<PathBuf>,
-    #[structopt(
+    #[clap(
         name = "objcopy-path",
-        short = "x",
+        short = 'x',
         long = "objcopy",
         help = "Alternate objcopy to use (defaults to objcopy in PATH)",
         parse(from_os_str)
     )]
     objcopy_path: Option<PathBuf>,
-    #[structopt(
+    #[clap(
         name = "omit-variables",
         long = "omit-variables",
         help = "Avoid emitting DW_TAG_variable entries for Anvill"
     )]
     omit_variables: bool,
-    #[structopt(
+    #[clap(
         name = "omit-functions",
         long = "omit-functions",
         help = "Avoid emitting DW_TAG_subprogram entries"
     )]
     omit_functions: bool,
-    #[structopt(short = "v", long = "verbose")]
+    #[clap(short = 'v', long = "verbose")]
     verbose: bool,
     // Has precedence over `verbose` flag
-    #[structopt(
+    #[clap(
         name = "level",
-        short = "l",
+        short = 'l',
         long = "logging",
         help = "Set logging level explicitly",
         parse(from_str)
@@ -115,7 +113,7 @@ pub trait InputFile: Sized + for<'de> Deserialize<'de> {
 }
 
 fn main() -> Result<()> {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
     let log_level = opt
         .logging
         .as_deref()
@@ -134,7 +132,7 @@ fn main() -> Result<()> {
 
     let mut type_map = dwarf.create_type_map();
 
-    for path in opt.ghidra_paths {
+    for path in &opt.ghidra_paths {
         let input = GhidraInput::new(path)?;
         let fn_map = input.as_map()?;
         dwarf.process(fn_map, &mut type_map);

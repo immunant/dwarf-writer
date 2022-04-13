@@ -18,7 +18,7 @@ object = "0.25.3"
 gimli = "0.26.1"
 
 anyhow = "1.0.41"
-structopt = "0.3.21"
+clap = { version = "3.1.8", features = ["derive"] }
 tempfile = "3.2.0"
 log = "0.4.14"
 simple-log = "1.0.6"
