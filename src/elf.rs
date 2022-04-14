@@ -5,7 +5,7 @@ use gimli::read;
 use gimli::write::{Address, Dwarf, EndianVec, Sections};
 use gimli::{EndianSlice, RunTimeEndian, SectionId};
 use log::warn;
-use object::{Object, ObjectSection};
+use object::{Object, ObjectSection, ObjectSymbol};
 use std::borrow::Cow;
 use std::fs;
 use std::io::{Read, Write};
@@ -92,8 +92,48 @@ impl ELF {
 
         // Update symbols
         let mut cmd = Command::new(objcopy);
+        let object = self.object();
+        let existing_syms: Vec<_> = object
+            .symbols()
+            .map(|existing| (existing.name(), existing.address()))
+            .collect();
         for s in syms.0 {
-            cmd.arg("--add-symbol").arg(s.objcopy_cmd());
+            // If an existing symbol has a matching address, find its name
+            let addr_exists = existing_syms.iter().find_map(|&(name, addr)| {
+                if addr == s.value {
+                    name.map(|n| Some(n)).unwrap_or(None)
+                } else {
+                    None
+                }
+            });
+            // If an existing symbol has a matching name, find its address
+            let name_exists = existing_syms.iter().find_map(|&(name, addr)| {
+                name.map(|n| if n == s.name { Some(addr) } else { None })
+                    .unwrap_or(None)
+            });
+            match (addr_exists, name_exists) {
+                (None, None) => {
+                    // Add a new symbol if no existing symbol has a matching address or name
+                    cmd.arg("--add-symbol").arg(s.objcopy_add_cmd());
+                },
+                (Some(old_name), None) => {
+                    // If a symbol with the same address has a different name, update its name
+                    cmd.arg("--redefine-sym")
+                        .arg(format!("{}={}", old_name, s.name));
+                },
+                (None, Some(_)) => {
+                    // If a symbol with the same name has a different address, update its address by
+                    // first stripping the existing symbol then adding it again
+                    cmd.arg("--strip-symbol").arg(s.name.to_owned());
+                    cmd.arg("--add-symbol").arg(s.objcopy_add_cmd());
+                },
+                (Some(existing_name), Some(existing_addr)) => {
+                    // If an existing symbol has the same address and name we don't need to update
+                    // anything.
+                    assert!(existing_name == s.name);
+                    assert!(existing_addr == s.value);
+                },
+            };
         }
         let output = cmd.arg(output_path.as_path()).output()?;
         let stdout = std::str::from_utf8(&output.stdout)?;

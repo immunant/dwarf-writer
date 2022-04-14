@@ -40,7 +40,7 @@ This tool supports creating and updating DWARF entries for functions and global 
         - DW_AT_name
         - DW_AT_type
 
-There is also experimental support for adding symbols for functions and variables with names. Symbols are not added for functions and variables with auto-generated names (i.e. `FUN_$ADDRESS`, `VAR_$ADDRESS`). There is currently no support for updating existing symbols or specifying symbol sections (defaults to ABS).
+There is also experimental support for adding new ELF symbols for functions and variables. If an existing symbol has an address (name) matching a symbol in the input file, the symbol's name (address) is updated. There is currently no support for specifying symbol sections (defaults to ABS).
 
 ## STR BSI format
 
@@ -85,4 +85,4 @@ $ dwarf-writer -g $GHIDRA_CSV $BINARY
         - DW_AT_name
         - DW_AT_type
 
-There is also experimental support for adding symbols for functions. There is currently no support for updating existing symbols or specifying symbol sections (defaults to ABS).
+There is also experimental support for adding new ELF symbols for functions. If an existing symbol has an address (name) matching a symbol in the input file, the symbol's name (address) is updated. There is currently no support for specifying symbol sections (defaults to ABS).

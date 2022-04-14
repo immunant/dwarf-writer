@@ -7,14 +7,14 @@ pub enum SymbolFlag {
 }
 
 pub struct Symbol {
-    name: String,
+    pub name: String,
     //section: Option<&str>,
-    value: u64,
+    pub value: u64,
     flags: SymbolFlag,
 }
 
 impl Symbol {
-    pub fn objcopy_cmd(&self) -> String {
+    pub fn objcopy_add_cmd(&self) -> String {
         let flags = match self.flags {
             SymbolFlag::Function => "function",
             SymbolFlag::Object => "object",
