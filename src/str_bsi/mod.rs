@@ -9,51 +9,14 @@ impl InputFile for StrBsiInput {}
 
 impl StrBsiInput {
     pub fn data(&self, cfg: &Opt) -> StrBsiData {
-        let use_all_entries = cfg.use_all_str;
         let fn_map = if cfg.omit_functions {
             HashMap::new()
         } else {
-            self.functions
-                .iter()
-                .filter_map(|(addr, f)| {
-                    let confidence = f.source_match.as_ref().map(|sm| sm.confidence).unwrap_or(0);
-                    if !use_all_entries && confidence != 1 {
-                        None
-                    } else {
-                        let addr = match addr.strip_prefix("0x") {
-                            Some(hex_addr) => u64::from_str_radix(hex_addr, 16),
-                            None => u64::from_str(addr),
-                        }
-                        .unwrap_or_else(|_| panic!("Unable to parse {} into a u64", addr));
-                        Some((addr, f))
-                    }
-                })
-                .collect()
+            self.functions.iter().map(|f| (f.address, f)).collect()
         };
-        let dwarf_types = self
-            .types(use_all_entries)
-            .iter()
-            .map(|&t| t.into())
-            .collect();
-        StrBsiData {
-            fn_map,
-            types: dwarf_types,
-        }
-    }
-
-    fn types(&self, use_all_entries: bool) -> Vec<&Type> {
-        let mut types = Vec::new();
-        for (_, func) in &self.functions {
-            if let Some(sm) = &func.source_match {
-                if !use_all_entries && sm.confidence != 1 {
-                    continue
-                }
-                types.append(&mut sm.types());
-            }
-        }
-        types.sort();
-        types.dedup();
-        types
+        let header_bytes = base64::decode(&self.header_file_b64).unwrap();
+        let header = String::from_utf8(header_bytes).unwrap();
+        StrBsiData { fn_map, header }
     }
 }
 
@@ -61,10 +24,34 @@ pub type StrFnMap<'a> = HashMap<u64, &'a Function>;
 
 pub struct StrBsiData<'a> {
     pub fn_map: StrFnMap<'a>,
-    pub types: Vec<DwarfType>,
+    pub header: String,
 }
 
-pub type Address = String;
+impl Function {
+    pub fn parameters(&self, header: &str) -> Option<Vec<NamedVariable>> {
+        let name = self.symbol_name.as_ref()?;
+        let start = header.find(&(name.to_owned() + "("))?;
+        let fn_name = name.len() + 1;
+        let end = header[start..].find(')')?;
+        let fn_decl = &header[start + fn_name..start + end];
+        let args = fn_decl.split(',');
+        let mut params = Vec::new();
+        for arg in args {
+            if !arg.ends_with("...") && !arg.is_empty() {
+                let name = arg.split(' ').last().map(|s| s.to_owned());
+                if name.is_none() {
+                    continue
+                }
+                let name = name.unwrap();
+                let param = NamedVariable { name, r#type: None };
+                params.push(param);
+            }
+        }
+        Some(params)
+    }
+}
+
+pub type Address = u64;
 pub type Register = String;
 pub type Type = String;
 pub type VarId = String;
@@ -72,53 +59,18 @@ pub type VarId = String;
 /// Represents a single STR BSI input file.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StrBsiInput {
-    functions: HashMap<Address, Function>,
+    functions: Vec<Function>,
+    header_file_b64: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Function {
+    #[serde(rename = "source_match")]
     pub symbol_name: Option<String>,
     calling_convention: Option<String>,
     return_registers: Vec<Register>,
     clobbered_registers: Vec<Register>,
-    source_match: Option<SourceMatch>,
-}
-
-impl Function {
-    pub fn parameters(&self) -> Option<Vec<&NamedVariable>> {
-        if let Some(sm) = &self.source_match {
-            if let Some(params) = &sm.parameters {
-                Some(params.values().collect())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn local_vars(&self) -> Option<Vec<&NamedVariable>> {
-        if let Some(sm) = &self.source_match {
-            if let Some(params) = &sm.local_variables {
-                Some(params.values().collect())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn file(&self) -> Option<&str> {
-        self.source_match
-            .as_ref()
-            .map(|sm| sm.file.as_ref().map(|file| file.as_str()))
-            .flatten()
-    }
-
-    pub fn line(&self) -> Option<u64> {
-        self.source_match.as_ref().map(|sm| sm.line).flatten()
-    }
+    address: Address,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

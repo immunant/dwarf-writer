@@ -2,7 +2,7 @@ use crate::anvill::{AnvillFnMap, AnvillVarMap};
 use crate::dwarf_attr::*;
 use crate::elf::ELF;
 use crate::ghidra::GhidraData;
-use crate::str_bsi::StrFnMap;
+use crate::str_bsi::StrBsiData;
 use crate::types::{DwarfType, TypeMap};
 use gimli::constants::*;
 use gimli::write::{Address, AttributeValue, DebuggingInformationEntry, Unit, UnitEntryId, UnitId};
@@ -129,7 +129,7 @@ impl<'a> EntryRef<'a> {
     }
 
     /// Initializes a newly created subprogram entry with STR data.
-    pub fn init_str_fn(&mut self, addr: u64, str_data: &mut StrFnMap, type_map: &TypeMap) {
+    pub fn init_str_fn(&mut self, addr: u64, str_data: &mut StrBsiData, type_map: &TypeMap) {
         self.set(
             DW_AT_low_pc,
             AttributeValue::Address(Address::Constant(addr)),
@@ -138,14 +138,15 @@ impl<'a> EntryRef<'a> {
     }
 
     /// Updates an existing function's subprogram entry with STR data.
-    pub fn update_str_fn(&mut self, str_data: &mut StrFnMap, type_map: &TypeMap) {
+    pub fn update_str_fn(&mut self, str_data: &mut StrBsiData, type_map: &TypeMap) {
+        let StrBsiData { fn_map, header } = str_data;
         // Get function address to see if there's disassembly data for it
         let low_pc_attr = self
             .get(DW_AT_low_pc)
             .expect("No DW_AT_low_pc found in DW_TAG_subprogram entry");
         let start_address = low_pc_to_u64(low_pc_attr);
 
-        let fn_data = str_data.remove(&start_address);
+        let fn_data = fn_map.remove(&start_address);
         if let Some(fn_data) = fn_data {
             // Update function name and source location
             if let Some(name) =
@@ -153,18 +154,9 @@ impl<'a> EntryRef<'a> {
             {
                 self.set(DW_AT_name, AttributeValue::String(name.as_bytes().to_vec()));
             }
-            if let Some(file) = fn_data.file() {
-                self.set(
-                    DW_AT_decl_file,
-                    AttributeValue::String(file.as_bytes().to_vec()),
-                );
-            }
-            if let Some(line) = fn_data.line() {
-                self.set(DW_AT_decl_line, AttributeValue::Data8(line));
-            }
 
             // Update function parameters
-            if let Some(new_params) = &fn_data.parameters() {
+            if let Some(new_params) = &fn_data.parameters(&header) {
                 // Delete all existing parameters
                 let existing_params: Vec<_> = self
                     .children()
@@ -185,32 +177,14 @@ impl<'a> EntryRef<'a> {
                     if let Some(ref ty) = param.r#type {
                         let param_ty = DwarfType::from(ty);
                         let param_ty_id = type_map.get(&param_ty).unwrap_or_else(|| {
-                            panic!("Parameter type {:?} not found in the type map", param_ty)
+                            panic!("Parameter type {:?} not found in type map", param_ty)
                         });
                         param_entry.set(DW_AT_type, AttributeValue::UnitRef(*param_ty_id));
-                        param_entry.set(
-                            DW_AT_name,
-                            AttributeValue::String(param.name.as_bytes().to_vec()),
-                        );
                     }
-                }
-            }
-
-            // Update the function's local variables
-            if let Some(local_vars) = &fn_data.local_vars() {
-                for var in local_vars {
-                    let mut var_entry = self.new_child(DW_TAG_variable);
-                    if let Some(ref ty) = var.r#type {
-                        let var_ty = DwarfType::from(ty);
-                        let var_ty_id = type_map.get(&var_ty).unwrap_or_else(|| {
-                            panic!("Variable type {:?} not found in the type map", var_ty)
-                        });
-                        var_entry.set(DW_AT_type, AttributeValue::UnitRef(*var_ty_id));
-                        var_entry.set(
-                            DW_AT_name,
-                            AttributeValue::String(var.name.as_bytes().to_vec()),
-                        );
-                    }
+                    param_entry.set(
+                        DW_AT_name,
+                        AttributeValue::String(param.name.as_bytes().to_vec()),
+                    );
                 }
             }
         }

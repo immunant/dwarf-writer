@@ -44,13 +44,10 @@ There is also experimental support for adding new ELF symbols for functions and 
 
 ## STR BSI format
 
-The tool also supports another JSON format that matches disassembled functions with their source code and has a probability associated for each match. Currently dwarf-writer defaults to only adding/updating function entries from these inputs if there is no uncertainty about the match (i.e. the `confidence` field equals 1). To write all the info from the input file regardless of the confidence level (for debugging/testing) pass `-u` to `dwarf-writer`.
+The tool also supports another JSON format that matches disassembled functions with their source.
 
 ```
 $ dwarf-wrter -b $STR_JSON $BINARY
-
-# Write all function entries from $STR_JSON to $BINARY as debug info
-$ dwarf-wrter -u -b $STR_JSON $BINARY
 ```
 
 This data can be used to create or update function entries and the following attributes.
@@ -58,15 +55,8 @@ This data can be used to create or update function entries and the following att
 - DW_TAG_subprogram (functions)
     - DW_AT_low_pc
     - DW_AT_name
-    - DW_AT_decl_line
-    - DW_AT_decl_file
-    - DW_TAG_variable (local variables)
-        - DW_AT_name
-        - DW_AT_type
     - DW_TAG_formal_parameter (arguments)
-        - DW_AT_location
         - DW_AT_name
-        - DW_AT_type
 
 ## Ghidra functions
 
