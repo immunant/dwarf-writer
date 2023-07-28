@@ -48,7 +48,7 @@ OPTIONS:
     -s, --section-files <output-dir>    Output directory for writing DWARF sections to individual
                                         files
     -u, --use-all-str                   Use all entries in STR data regardless of confidence level
-    -v, --verbose                       
+    -v, --verbose
     -x, --objcopy <objcopy-path>        Alternate objcopy to use (defaults to objcopy in PATH)
 
 
@@ -64,3 +64,6 @@ $ dwarf-writer -a $ANVILL_JSON -b $STR_JSON -x /usr/bin/arm-linux-gnueabihf-objc
 # To view the program's updated debug info
 $ llvm-dwarfdump $BINARY
 ```
+
+# Acknowledgements
+This material is based upon work supported by the Defense Advanced Research Projects Agency (DARPA) and Naval Information Warfare Center Pacific (NIWC Pacific) under Contract Number N66001-20-C-4027. Any opinions, findings and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the DARPA & NIWC Pacific.
